@@ -1,0 +1,19 @@
+---
+
+- hosts: RHEL
+  become: true
+  tasks:
+
+  - name: Install apache package
+    yum:
+      name: httpd
+      state: latest
+
+- hosts: Debian
+  become: true
+  tasks:
+
+  - name: Install apache package on ubuntu 
+    apt:
+      name: apache2
+      state: latest

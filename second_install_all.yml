@@ -1,0 +1,27 @@
+---
+
+- hosts: RHEL
+  become: true
+  tasks:
+
+  - name: update cache
+    yum:
+      update_cache: yes
+ 
+  - name: upgrade all
+    yum:
+      name: '*'
+      state: latest
+
+- hosts: Debian
+  become: true
+  tasks:
+
+  - name: update cache
+    apt:
+      update_cache: yes
+
+  - name: upgrade cache
+    apt:
+      name: '*'
+      state: latest 
