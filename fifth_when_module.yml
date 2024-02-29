@@ -1,0 +1,29 @@
+---
+
+- hosts: RHEL
+  become: yes
+  tasks:
+
+  - name: Install on EL7/EL8
+    package:
+          name: httpd
+          state: latest
+    when: ansible_os_family == "RedHat"
+
+- hosts: Debian
+  become: yes
+  tasks:
+
+  - name: Update cache
+    package:
+          update_cache: yes
+    when: ansible_os_family == "Debian"
+
+  - name: Install on ubuntu
+    package:
+          name: apache2
+          state: latest
+    when: ansible_os_family == "Debian"
+
+    
+    
