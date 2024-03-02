@@ -1,0 +1,7 @@
+# Host added in this file
+[RHEL]
+ansible_node1_Rocky apache_package=httpd php_package=php
+ansible_node3_EL7 apache_package=httpd php_package=php
+
+[Debian]
+ansible_node2_Ubuntu apache_package=apache2 php_package=libapache2-mod-php
