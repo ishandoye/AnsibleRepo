@@ -1,0 +1,29 @@
+---
+
+- hosts: all
+  become: true
+  tasks:
+
+  - name: create user for Redhat family
+    tags: user
+    user:
+      name: ishan
+      comment: "Ishan Doye"
+      create_home: true
+      append: true
+      groups: wheel
+      password: "Redhat@1991"
+      shell: /bin/bash
+    when: ansible_os_family == "RedHat"
+
+  - name: Create user for Debian family
+    tags: user
+    user:
+       name: ishan
+       comment: "Ishan Doye"
+       create_home: true
+       append: true
+       groups: sudo
+       password: "Redhat@1991"
+       shell: /bin/bash
+    when: ansible_os_family == "Debian"
