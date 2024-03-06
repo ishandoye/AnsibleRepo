@@ -1,0 +1,17 @@
+---
+mirror_url: "https://rax.mirror.rackspace.com"
+nimbus_installer: "nimbusinstallers-current.tar.gz"
+nimbus_url: "{{ mirror_url }}/segsupport/{{ nimbus_installer }}"
+nimbus_paths:
+  - "/opt/nimbus"
+  - "/opt/nimsoft"
+nimbus_installer_path: "~rack/nimbus-installer"
+nimbus_service_files:
+  - /etc/init/nimbus.conf
+  - /lib/systemd/system/nimbus.service
+nimbus_sysv_topdir: "/etc/rc.d"
+nimbus_sysv_patterns:
+  - "K*nimbus"
+  - "S*nimbus"
+  - "nimbus"
+...

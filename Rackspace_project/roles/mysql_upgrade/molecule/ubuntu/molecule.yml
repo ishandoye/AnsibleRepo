@@ -1,0 +1,75 @@
+---
+driver:
+  name: docker
+
+lint: |
+  set -e
+  yamllint .
+
+platforms:
+  - name: mysql_upgrade_focal
+    image: ubuntu:focal
+    dockerfile: Dockerfile.j2
+    override_command: false
+    privileged: true
+
+  - name: mariadb_upgrade_focal
+    image: ubuntu:focal
+    dockerfile: Dockerfile.j2
+    override_command: false
+    privileged: true
+
+  - name: percona_upgrade_focal
+    image: ubuntu:focal
+    dockerfile: Dockerfile.j2
+    override_command: false
+    privileged: true
+
+  - name: mysql_upgrade_bionic
+    image: ubuntu:bionic
+    dockerfile: Dockerfile.j2
+    override_command: false
+    privileged: true
+
+  - name: mariadb_upgrade_bionic
+    image: ubuntu:bionic
+    dockerfile: Dockerfile.j2
+    override_command: false
+    privileged: true
+
+  - name: percona_upgrade_bionic
+    image: ubuntu:bionic
+    dockerfile: Dockerfile.j2
+    override_command: false
+    privileged: true
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      # This role skips a _lot_ of tasks so this makes convergence more readable
+      display_skipped_hosts: false
+  log: true
+  env:
+    ANSIBLE_ACTION_PLUGINS: "${MOLECULE_PROJECT_DIRECTORY}/../../action_plugins"
+    ANSIBLE_MODULE_UTILS: "${MOLECULE_PROJECT_DIRECTORY}/../../module_utils"
+    ANSIBLE_LOOKUP_PLUGINS: "${MOLECULE_PROJECT_DIRECTORY}/../../lookup_plugins"
+    ANSIBLE_LIBRARY: "${MOLECULE_PROJECT_DIRECTORY}/../../library"
+    ANSIBLE_CALLBACK_PLUGINS: "${MOLECULE_PROJECT_DIRECTORY}/../../callback_plugins"
+
+scenario:
+  name: ubuntu
+  test_sequence:
+    - syntax
+    - destroy
+    - create
+    - prepare
+    - converge
+    - side_effect
+    - verify
+    - destroy
+
+verifier:
+  name: ansible
+  enabled: true
+...

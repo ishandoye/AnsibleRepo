@@ -1,0 +1,11 @@
+---
+- hosts: all
+  become: "yes"
+  pre_tasks:
+  - name: Get CORE data when using ACE
+    include_tasks: ace.yml
+    when: config_id is defined
+  tasks:
+  - include_role:
+      name: sophos
+...

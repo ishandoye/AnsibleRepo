@@ -1,0 +1,26 @@
+---
+
+# HP
+hp_server_gen: "{{ ansible_product_name.split(' ')[-1]| lower }}"
+hp_sdr_url: https://mirror.rackspace.com/hp/SDR
+hp_spp_url: "{{ hp_sdr_url }}/repo/spp-{{ hp_server_gen }}"
+hp_mcp_url: "{{ hp_sdr_url }}/repo/mcp"
+hp_gpgkey_urls:
+  - "{{ hp_sdr_url }}/hpPublicKey2048_key1.pub"
+  - "{{ hp_sdr_url }}/hpePublicKey2048_key1.pub"
+
+# Dell
+dell_repo_url: https://mirror.rackspace.com/dell
+dell_dsu_url: "{{ dell_repo_url }}/hardware/dsu"
+dell_ubuntu_url: "{{ dell_repo_url }}/community/ubuntu"
+dell_gpgkey_url: "{{ dell_dsu_url }}/public.key"
+
+racadm:
+  legacy:
+    get_user: "getconfig -g cfgUserAdmin -i {}"
+    set_user_pwd: "config -g cfgUserAdmin -o cfgUserAdminPassword -i {} '{}'"
+  modern:
+    get_user: "get iDRAC.Users.{}.UserName"
+    set_user_pwd: "set iDRAC.Users.{}.Password '{}'"
+
+obm_user: root

@@ -1,0 +1,496 @@
+---
+rs_ctkapi_info:
+  account_manager: Ginger Lee
+  account_name: Linux Support Test Account
+  account_num: '27329'
+  account_service_level: Managed
+  admin_pass: b39Y9gCVjmeK
+  admin_user: root
+  bdc: Ginger Lee
+  behind: []
+  datacenter: ORD1
+  dmgs: |
+    "
+    Device owner: Ryan Stark
+    Device owner Desk Phone: 506-1112
+    Device owner Cell Phone: 234-567-9746
+    Device owner Email: rstark@rackspace.com
+    Device owner Manager: Keith Ross
+    Device owner Manager Email: keith.ross@rackspace.com
+    Device owner Department: Engine Room Linux Support
+
+    SECURITY / APPROVALS / PERMISSIONS / CHANGE CONTROL (DEVICE LEVEL)
+    ============================
+    (Any specific compliance codes they are meeting (PCI, HIPPA, etc))
+
+
+    (Tasks requiring specific approvals)
+    ============================
+
+
+    LOGIN CONSIDERATION / NOTES (DEVICE LEVEL)
+    ============================
+
+
+    (Special login considerations/notes)
+    ============================
+
+
+    SPECIAL NOTES (DEVICE LEVEL)
+    ============================
+
+
+    (Relevant device level notes)
+    ============================
+
+
+    DEVICE FUNCTION (DEVICE LEVEL)
+    ============================
+    Ubuntu testing VM for Linux Support
+
+
+    ============================
+    Device Management Guidelines updated by Ryan Stark on 2015/05/26
+    "
+  drac: null
+  drac_gateway: null
+  drac_pass: []
+  drac_user: []
+  drac_vlan: null
+  failover_device: null
+  gateway: 50.57.4.145
+  has_managed_backup: true
+  icon_path: https://28616ea5aab979dce92c-69a5bc1f8c3c585c4f658970ef961bb7.ssl.cf2.rackcdn.com/vmlinux.gif
+  in_front:
+    - 860007
+    - 859998
+  ip_addresses:
+    - 10.132.254.207
+    - 50.57.4.144
+  is_cluster: false
+  lead_tech: null
+  login_method: Password Auth
+  nat_comments: []
+  netmask: 255.255.255.248
+  nickname: 300006-ubuntu16
+  online_date: '2015-06-16 15:40:19'
+  os_type: Linux
+  os_version: Ubuntu 16.04 LTS
+  platform_model: Virtual Machine Linux
+  platform_name: Virtual Machine Linux
+  port: []
+  primary_ip: 50.57.4.144
+  primary_userid: rstark
+  primary_userid_password: veloFYUd73AB
+  private_gateway: 172.24.16.1
+  private_ip: 172.24.16.144
+  private_netmask: 255.255.252.0
+  protocol: []
+  rack_password: hp4lWWM2oKWd
+  rba_login_user: ''
+  rba_login_user_password: ''
+  root_method: Default (su-)
+  root_method_id:
+    attributes: https://ws.core.rackspace.com/ctkapi/attributes/Computer.ComputerRootAccess
+    class_name: Computer.ComputerRootAccess
+    class_type: Value_Table
+    description: Default (su-)
+    id: 1
+    load_value: id
+    methods: https://ws.core.rackspace.com/ctkapi/methods/Computer.ComputerRootAccess
+    name: Default (su-)
+    values: https://ws.core.rackspace.com/ctkapi/values/Computer.ComputerRootAccess
+  segment: ENT Z
+  server: 300006
+  server_name: 300006-ubuntu16.rackersupport.com
+  service_level_name: Intensive
+  service_levels:
+    attribute: service_products
+    subattributes:
+      - label: Hardware Management
+        value: Rackspace  Managed
+      - label: DC Level
+        value: Rackspace Standard
+      - label: Application Management
+        value: Customer    Managed
+      - label: OS Management
+        value: Rackspace   Managed
+  servicenet_ips:
+    - 10.132.254.207
+  servicenet_vlan_ids:
+    - 2838
+  ssh_key_passphrase: ''
+  ssh_key_private: ''
+  status: Ready for Account Team
+  status_id: 10
+  team: ENTZ-7MIX
+rs_customer: '535700'
+rs_datacenter: DFW
+rs_device_id: 300007
+rs_device_name: Server-05-sean5418-deleteanytime
+rs_target_sla: Managed
+rs_obm_ip: null
+rs_obm_pass: null
+rs_obm_user: null
+rs_ohthree_info:
+  access_ip_v4: 23.253.125.188
+  access_ip_v6: 2001:4800:7817:103:be76:4eff:fe04:8801
+  architecture: x64
+  auto_disk_config: 0
+  availability_zone: null
+  cell: b0005
+  cell_name: null
+  cleaned: 0
+  config_drive: ''
+  created_at: '2018-06-20 17:19:37'
+  default_ephemeral_device: null
+  default_swap_device: null
+  deleted: 0
+  deleted_at: null
+  disable_terminate: 0
+  display_description: Server-05
+  display_name: Server-05-sean5418-deleteanytime
+  ephemeral_gb: 0
+  flavor:
+    id: general1-1
+    name: 1 GB General Purpose v1
+  host: c-10-24-145-130
+  hostname: server-05
+  id: 821235
+  image_ref: c723430f-817c-421a-b785-1e1734525a68
+  instance_metadata:
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 21689829
+      instance_uuid: 300007
+      key: build_config
+      updated_at: null
+      value: ''
+    - created_at: '2018-06-20T17:21:39'
+      deleted: 0
+      deleted_at: null
+      id: 21689909
+      instance_uuid: 300007
+      key: rax_service_level_automation
+      updated_at: '2018-07-09T14:46:30'
+      value: Complete
+  instance_system_metadata:
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950526
+      instance_uuid: 300007
+      key: image_com.rackspace__1__build_config_options
+      updated_at: '2018-07-09T14:42:02'
+      value: rack_user_only,base_mgdops_config,mailgun,monitoring_agent_only,monitoring_defaults,updates
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950527
+      instance_uuid: 300007
+      key: image_os_type
+      updated_at: null
+      value: linux
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950528
+      instance_uuid: 300007
+      key: image_com.rackspace__1__release_version
+      updated_at: '2018-07-09T14:42:02'
+      value: '7'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950529
+      instance_uuid: 300007
+      key: image_com.rackspace__1__build_managed
+      updated_at: null
+      value: '1'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950530
+      instance_uuid: 300007
+      key: image_com.rackspace__1__build_core
+      updated_at: null
+      value: '1'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950531
+      instance_uuid: 300007
+      key: image_com.rackspace__1__visible_rackconnect
+      updated_at: null
+      value: '1'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950532
+      instance_uuid: 300007
+      key: image_com.rackspace__1__options
+      updated_at: null
+      value: '0'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950533
+      instance_uuid: 300007
+      key: image_com.rackspace__1__source
+      updated_at: '2018-07-09T14:42:02'
+      value: canonical
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950534
+      instance_uuid: 300007
+      key: image_image_type
+      updated_at: null
+      value: base
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950535
+      instance_uuid: 300007
+      key: image_com.rackspace__1__release_id
+      updated_at: '2018-07-09T14:42:02'
+      value: ubuntu_18.04_lts_pvhvm
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950536
+      instance_uuid: 300007
+      key: image_auto_disk_config
+      updated_at: null
+      value: disabled
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950537
+      instance_uuid: 300007
+      key: image_com.rackspace__1__visible_core
+      updated_at: null
+      value: '1'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950538
+      instance_uuid: 300007
+      key: image_min_ram
+      updated_at: null
+      value: '256'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950539
+      instance_uuid: 300007
+      key: image_disk_format
+      updated_at: null
+      value: vhd
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950540
+      instance_uuid: 300007
+      key: image_com.rackspace__1__platform_target
+      updated_at: null
+      value: PublicCloud
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950541
+      instance_uuid: 300007
+      key: image_com.rackspace__1__build_rackconnect
+      updated_at: null
+      value: '1'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950542
+      instance_uuid: 300007
+      key: image_os_distro
+      updated_at: '2018-07-09T14:42:02'
+      value: ubuntu
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950543
+      instance_uuid: 300007
+      key: image_vm_mode
+      updated_at: null
+      value: hvm
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950544
+      instance_uuid: 300007
+      key: image_com.rackspace__1__visible_managed
+      updated_at: null
+      value: '1'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950545
+      instance_uuid: 300007
+      key: image_min_disk
+      updated_at: null
+      value: '20'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950546
+      instance_uuid: 300007
+      key: image_flavor_classes
+      updated_at: null
+      value: '*,!onmetal,!onmetal2'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950547
+      instance_uuid: 300007
+      key: image_cache_in_nova
+      updated_at: null
+      value: 'True'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950548
+      instance_uuid: 300007
+      key: image_org.openstack__1__os_version
+      updated_at: '2018-07-09T14:42:02'
+      value: '18.04'
+    - created_at: '2018-06-20T17:19:37'
+      deleted: 0
+      deleted_at: null
+      id: 501950549
+      instance_uuid: 300007
+      key: image_org.openstack__1__os_distro
+      updated_at: '2018-07-09T14:42:02'
+      value: com.ubuntu
+    - created_at: '2018-06-20T17:19:38'
+      deleted: 0
+      deleted_at: null
+      id: 501950550
+      instance_uuid: 300007
+      key: image_container_format
+      updated_at: null
+      value: ovf
+    - created_at: '2018-06-20T17:19:38'
+      deleted: 0
+      deleted_at: null
+      id: 501950551
+      instance_uuid: 300007
+      key: image_org.openstack__1__architecture
+      updated_at: null
+      value: x64
+    - created_at: '2018-06-20T17:19:38'
+      deleted: 0
+      deleted_at: null
+      id: 501950552
+      instance_uuid: 300007
+      key: image_com.rackspace__1__release_build_date
+      updated_at: '2018-07-09T14:42:02'
+      value: 2018-06-01_17-11-23
+    - created_at: '2018-06-20T17:19:38'
+      deleted: 0
+      deleted_at: null
+      id: 501950554
+      instance_uuid: 300007
+      key: image_com.rackspace__1__ui_default_show
+      updated_at: null
+      value: 'True'
+    - created_at: '2018-07-09T14:42:02'
+      deleted: 0
+      deleted_at: null
+      id: 504425572
+      instance_uuid: 300007
+      key: image_hypervisor_version_requires
+      updated_at: null
+      value: '>=6.1'
+  instance_type_id: 56
+  internal_id: null
+  kernel_id: ''
+  key_data: null
+  key_name: null
+  launch_index: 0
+  launched_at: '2018-07-09 14:44:52'
+  launched_on: c-10-24-145-130
+  locked: 0
+  locked_by: null
+  memory_mb: 1024
+  node: 24-145-64-563668
+  os_type: linux
+  power_state: 1
+  progress: 100
+  project_id: '535700'
+  ramdisk_id: ''
+  region: dfw
+  reservation_id: r-m65uxlf9
+  root_device_name: /dev/xvda
+  root_gb: 20
+  scheduled_at: null
+  shutdown_terminate: 0
+  task_state: null
+  terminated_at: null
+  updated_at: '2018-07-09 14:44:53'
+  user_data: null
+  user_id: '76768'
+  uuid: 300007
+  vcpus: 1
+  vm_mode: hvm
+  vm_state: active
+rs_os_sku: ubuntu 18.04
+rs_platform: Cloud Server
+rs_platform_vendor: Rackspace Public Cloud
+rs_public_cloud_info:
+  server:
+    OS-DCF:diskConfig: MANUAL
+    OS-EXT-STS:power_state: 1
+    OS-EXT-STS:task_state: null
+    OS-EXT-STS:vm_state: active
+    RAX-PUBLIC-IP-ZONE-ID:publicIPZoneId: 4f070ffd88bffcec84d0367a9d97314572ffcae43e46cd73887724ea
+    accessIPv4: 23.253.125.188
+    accessIPv6: 2001:4800:7817:103:be76:4eff:fe04:8801
+    addresses:
+      private:
+        - addr: 10.208.161.146
+          version: 4
+      public:
+        - addr: 2001:4800:7817:103:be76:4eff:fe04:8801
+          version: 6
+        - addr: 23.253.125.188
+          version: 4
+    config_drive: ''
+    created: '2018-06-20T17:19:37Z'
+    flavor:
+      id: general1-1
+      links:
+        - href: https://dfw.servers.api.rackspacecloud.com/535700/flavors/general1-1
+          rel: bookmark
+    hostId: de1376b316faf71ab24e0bad9af1a6718a339f5db5f470d1184cb173
+    id: 300007
+    image:
+      id: c723430f-817c-421a-b785-1e1734525a68
+      links:
+        - href: https://dfw.servers.api.rackspacecloud.com/535700/images/c723430f-817c-421a-b785-1e1734525a68
+          rel: bookmark
+    key_name: null
+    links:
+      - href: https://dfw.servers.api.rackspacecloud.com/v2/535700/servers/300007
+        rel: self
+      - href: https://dfw.servers.api.rackspacecloud.com/535700/servers/300007
+        rel: bookmark
+    metadata:
+      build_config: ''
+      rax_service_level_automation: Complete
+    name: Server-05-sean5418-deleteanytime
+    progress: 100
+    status: ACTIVE
+    tenant_id: '535700'
+    updated: '2018-07-09T14:44:53Z'
+    user_id: '76768'
+rs_region: DFW
+rs_server: 300007
+rs_server_type: cloud
+...

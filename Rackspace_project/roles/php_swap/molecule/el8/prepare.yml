@@ -1,0 +1,20 @@
+---
+- name: Install PHP and prereqs
+  hosts: all
+  gather_facts: true
+  gather_subset:
+    - min
+  tasks:
+    - name: Install GPG key for Rocky
+      rpm_key:
+        key: https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-rockyofficial
+      when: ansible_distribution | lower == "rocky"
+
+    - name: Install default PHP package and prereqs
+      package:
+        name:
+          - which
+          - procps-ng
+          - php
+          - php-cli
+        state: present

@@ -1,0 +1,25 @@
+[sssd]
+config_file_version = 2
+domains = {{ ad_domain|lower }}
+services = nss, pam
+
+[domain/{{ ad_domain|lower }}]
+id_provider = ad
+krb5_realm = {{ ad_domain|upper }}
+ldap_force_upper_case_realm = true
+ldap_sasl_authid = {{ netbiosname }}$@{{ ad_domain|upper }}
+fallback_homedir = /home/%u
+override_shell = /bin/bash
+ldap_use_tokengroups = False
+ad_enabled_domains = {{ ad_domain|lower }}, intensive.int
+dyndns_update = False
+ignore_group_members = True
+subdomain_inherit = ignore_group_members
+{% if DOMAIN_CONTROLLERS is defined and DOMAIN_CONTROLLERS %}
+ad_server = {{ DOMAIN_CONTROLLERS }}
+{% endif %}
+{% if allow_groups[0]|lower != 'n' %}
+access_provider = simple
+simple_allow_groups = {{ allow_groups | join(',') }}
+{% endif %}
+enumerate = {{ (ENUMERATE|bool or ENUMERATE|lower == 'y')|string|lower }}

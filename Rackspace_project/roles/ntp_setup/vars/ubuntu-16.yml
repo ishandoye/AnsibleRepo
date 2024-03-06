@@ -1,0 +1,10 @@
+---
+core_name: timesyncd
+service_name: "systemd-{{ core_name }}"
+ntp_config_src: "{{ core_name }}.conf.j2"
+ntp_config_dest: "/etc/systemd/{{ core_name }}.conf"
+packages:
+  - systemd
+  - ntpdate
+update_pkg_cache: "yes"
+...

@@ -1,0 +1,14 @@
+[dell-system-update_independent]
+name=dell-system-update_independent
+baseurl={{ dell_dsu_url }}/os_independent/
+gpgcheck=1
+gpgkey={{ dell_gpgkey_url }}
+enabled=1
+exclude=dell-system-update*.i386
+
+[dell-system-update_dependent]
+name=dell-system-update_dependent
+mirrorlist={{ dell_dsu_url }}/mirrors.cgi?osname=el$releasever&basearch=$basearch&native=1
+gpgcheck=1
+gpgkey={{ dell_gpgkey_url }}
+enabled=1

@@ -1,0 +1,73 @@
+---
+- name: Getting OTP
+  block:
+    - name: Get ADC OTP
+      retries: 3
+      delay: 1
+      until: xml_response.status == 200
+      uri:
+        url: "{{ rpc_url }}"
+        method: POST
+        return_content: "yes"
+        body_format: json
+        body:
+          action: "{{ api_actions['adc'] }}"
+        headers:
+          X-Auth: "{{ token }}"
+      register: xml_response
+
+    - name: Parsing xml creds
+      set_fact:
+        otp_u: >-
+          {{ xml_response.content |
+             regex_search('<username>[^<]+') |
+             regex_search('[^>]+$')
+          }}
+        otp_p: >-
+          {{ xml_response.content |
+             regex_search('<password>[^<]+') |
+             regex_search('[^>]+$')
+          }}
+      when: xml_response.status == 200
+
+    - name: Get registration token
+      retries: 3
+      delay: 1
+      until: reg_tok.status == 200
+      uri:
+        url: "{{ api_url }}"
+        method: POST
+        body_format: json
+        body:
+          action: "{{ api_actions['inventory'] }}"
+          server_number: "{{ rs_server }}"
+          password: "{{ otp_p }}"
+          username: "{{ otp_u }}"
+          debug: 1
+        headers:
+          User-Agent: "Ansible registration"
+        return_content: "yes"
+      register: reg_tok
+      when: otp_u is defined and otp_p is defined
+  delegate_to: localhost
+  become: "no"
+  no_log: "true"
+
+- name: Create config file
+  template:
+    src: rs-inventory.cfg.j2
+    dest: "{{ rsinv_conf }}"
+    mode: 0600
+    owner: root
+    group: root
+
+- name: Verify the registration is complete
+  shell: "{{ rsinv_cmd }} -p -d"
+  register: rsinv_verify
+  changed_when: "false"
+
+- name: Verification message
+  debug:
+    msg: "{{ rsinv_verify.stdout }}"
+  when: rsinv_verify.rc == 0
+...

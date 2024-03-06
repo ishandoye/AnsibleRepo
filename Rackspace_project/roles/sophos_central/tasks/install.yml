@@ -1,0 +1,26 @@
+---
+- name: Block for root user tasks
+  block:
+    - name: Create temporary directory for sophos install
+      ansible.builtin.tempfile:
+        path: "{{ tmpdir.path }}"
+        prefix: "{{ tmpdir.prefix }}"
+        state: directory
+      register: tmp_path
+      notify: Remove temporary directory
+
+    - name: Execute installer
+      ansible.builtin.command:  # noqa: no-changed-when
+        cmd: >-
+          {{ installer_script.dest }}
+          {{ installer_flags.values() | join(' ') }}
+      environment:
+        TMPDIR: "{{ tmp_path.path }}"
+
+    - name: Print message that install happened
+      debug:
+        msg: Sophos Central installed
+  always:
+    - name: Ensure temporary directory is removed
+      ansible.builtin.meta: flush_handlers
+  become: true

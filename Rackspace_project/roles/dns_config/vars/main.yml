@@ -1,0 +1,20 @@
+---
+resolv_file: /etc/resolv.conf
+
+all_dcnames:
+  dfw: dfw1
+  fra: fra1
+  hkg: hkg1
+  iad: iad3
+  lon: lon
+  ord: ord1
+  syd: syd2
+
+check_domain: rackspace.com
+region_name: "{{ rs_region | lower | regex_replace('[0-9]+','') }}"
+dcname: "{{ all_dcnames[region_name] | default('') }}"
+
+dns_primary_fqdn: "cachens1.{{ dcname }}.rackspace.com"
+dns_secondary_fqdn: "cachens2.{{ dcname }}.rackspace.com"
+
+...

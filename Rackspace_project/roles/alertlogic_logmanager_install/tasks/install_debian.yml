@@ -1,0 +1,6 @@
+---
+- name: Install the deb Package
+  apt:
+    deb: "{{ al_pkg_file }}"
+  notify: Cleanup remote pkg
+...

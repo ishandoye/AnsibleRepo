@@ -1,0 +1,11 @@
+---
+
+- hosts: all
+  gather_facts: false
+  tasks:
+
+    - core_sku_facts:
+        device_id: "{{ rs_server }}"
+      delegate_to: 127.0.0.1
+
+    - debug: var=core_sku_facts

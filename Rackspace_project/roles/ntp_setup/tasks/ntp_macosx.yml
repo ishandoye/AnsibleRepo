@@ -1,0 +1,18 @@
+---
+- name: Get NTP IP via dig command
+  become: no
+  delegate_to: localhost
+  command: dig +noall +short {{ rs_time_server_fqdn }}
+  register: ntp_via_dig
+  check_mode: no
+  changed_when: false
+  failed_when: >-
+    (not (ntp_via_dig.stdout_lines[-1]|ipaddr)
+      if 'stdout_lines' in ntp_via_dig
+      and ntp_via_dig.stdout_lines|length > 0 else True)
+    and ntp_via_dig.rc == 0
+
+- name: Extract IP address
+  set_fact:
+    rs_time_server_ip: "{{ ntp_via_dig.stdout_lines[-1] }}"
+...

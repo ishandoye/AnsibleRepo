@@ -1,0 +1,21 @@
+---
+- name: Verify {{ chk_description }}{{ chk_allowed|ternary('', ' cannot')}} login
+  shell: >-
+    sshpass -p{{ chk_password }}
+    ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null
+    {{ chk_username }}@localhost "/bin/bash -c 'echo -e \"\$PWD\\n\$SHELL\"'"
+  changed_when: false
+  register: user_login
+  failed_when: >
+    chk_allowed|ternary(
+      (user_login.rc != 0),
+      (user_login.rc == 0)
+    )
+
+- name: Check homedir and shell are correct
+  assert:
+    that:
+      - user_login.stdout_lines[0] == "/home/" + chk_username.partition("@")[0]
+      - user_login.stdout_lines[1] == "/bin/bash"
+  when: chk_allowed
+...

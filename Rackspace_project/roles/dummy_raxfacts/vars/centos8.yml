@@ -1,0 +1,64 @@
+---
+rs_ctkapi_info:
+  account_name: Linux Support Test Account
+  account_num: '27329'
+  account_service_level: Managed
+  admin_pass: gJ7SWyCjhki9
+  admin_user: root
+  contract: null
+  drac: null
+  drac_gateway: null
+  drac_pass: []
+  drac_user: []
+  drac_vlan: null
+  gateway: null
+  has_managed_backup: true
+  ip_addresses:
+  - 10.132.254.176
+  - 172.24.16.76
+  - 184.106.41.76
+  is_cluster: false
+  login_method: Password Auth
+  netmask: 255.255.255.240
+  nickname: ''
+  os_type: Linux
+  os_version: Red Hat Enterprise Linux 8
+  password_notes: 'admin : 6YMJxK6bjyG083WVOr6R4OqL'
+  primary_ip: 184.106.41.76
+  primary_ipv6: null
+  primary_userid: rstark
+  primary_userid_password: LQ8HGqX8zsJX
+  private_gateway: 172.24.16.1
+  private_ip: 172.24.16.76
+  private_netmask: 255.255.252.0
+  rack_password: '!AAoeWE$CVbvAA09Q2'
+  root_method: Default (su-)
+  server: 726842
+  server_name: 726842-rhel8.test-4.rackersupport.com
+  service_level_name: Intensive
+  servicenet_ips:
+  - 10.132.254.176
+  servicenet_vlan_ids:
+  - 2837
+  status: Online/Complete
+  status_id: 12
+  team: ENTZ-7MIX
+rs_customer: '27329'
+rs_datacenter: ORD1
+rs_device_id: '726842'
+rs_device_name: 726842-rhel8.test-4.rackersupport.com
+rs_target_sla: Intensive
+rs_device_status: Online/Complete
+rs_obm_ip: null
+rs_obm_pass: null
+rs_obm_user: null
+rs_ohthree_info: null
+rs_os_sku: Red Hat Enterprise Linux 8
+rs_platform: Virtual Machine
+rs_platform_vendor: VMWare
+rs_public_cloud_info: null
+rs_region: ORD
+rs_server: '726842'
+rs_server_type: core
+rs_account_team: ENTZ-7MIX
+...

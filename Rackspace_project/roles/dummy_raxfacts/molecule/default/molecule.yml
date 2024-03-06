@@ -1,0 +1,85 @@
+---
+dependency:
+  enabled: false
+
+driver:
+  name: docker
+
+lint:
+  name: yamllint
+  options:
+    config-data:
+      rules:
+        braces:
+          max-spaces-inside: 1
+          level: error
+        brackets:
+          max-spaces-inside: 1
+          level: error
+        line-length: disable
+
+platforms:
+  - name: centos6
+    image: centos:6
+    groups: [ dedicated, stable ]
+
+  - name: centos7
+    image: centos:7
+    groups: [ dedicated, stable, test ]
+
+  - name: rhel6
+    image: registry.access.redhat.com/rhel6/rhel
+    groups: [ dedicated ]
+
+  - name: rhel7
+    image: registry.access.redhat.com/rhel7/rhel
+    groups: [ dedicated ]
+
+  - name: ubuntu1404
+    image: ubuntu:trusty
+    groups: [ dedicated, stable ]
+
+  - name: ubuntu1604
+    image: ubuntu:xenial
+    groups: [ dedicated, stable ]
+
+  - name: ubuntu1804
+    image: ubuntu:bionic
+    groups: [ dedicated, stable ]
+
+  - name: ubuntu1804-cloud
+    image: ubuntu:bionic
+    groups: [ cloud ]
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_FORKS: "7"
+    ANSIBLE_ROLES_PATH: ../../../../roles
+  inventory:
+    group_vars:
+      cloud:
+        is_cloud: "True"
+  lint:
+    name: ansible-lint
+
+scenario:
+  name: default
+  test_sequence:
+    - lint
+    - destroy
+    - dependency
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - side_effect
+    - verify
+    - destroy
+
+verifier:
+  enabled: false
+  name: testinfra
+  lint:
+    name: flake8

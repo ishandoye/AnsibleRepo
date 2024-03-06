@@ -1,0 +1,8 @@
+---
+- hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+  - include_role:
+      name: rax_server_management_tools
+...

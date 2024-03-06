@@ -1,0 +1,141 @@
+---
+- name: Prepare database servers
+  hosts: all
+  gather_facts: true
+  gather_subset:
+    - min
+  tasks:
+    - name: Configure MariaDB server
+      block:
+        - name: Install MariaDB packages
+          package:
+            name:
+              - mariadb-server
+              - mariadb-test
+            state: present
+
+        - name: Enable MariaDB server
+          service:
+            name: mariadb
+            state: started
+            enabled: true
+
+        - name: Install MySQL-python
+          package:
+            name: MySQL-python
+            state: present
+          when: discovered_interpreter_python == "/usr/bin/python"
+
+        - name: Install MySQL-python
+          package:
+            name: python3-PyMySQL
+            state: present
+          when: discovered_interpreter_python != "/usr/bin/python"
+
+        - name: Create test database
+          mysql_db:
+            name: world
+            state: present
+
+        - name: Populate test database schema
+          shell:
+            cmd: mysql world < /usr/share/mysql-test/include/world_schema.inc
+            creates: /var/lib/mysql/world/Country.frm
+
+        - name: Populate test database data
+          shell:
+            cmd: mysql world < /usr/share/mysql-test/include/world.inc
+
+      when: ("mariadb" in inventory_hostname)
+
+    - name: Install MySQL Community Edition server
+      block:
+        - name: Import the MySQL RPM 2022 key
+          rpm_key:
+            state: present
+            key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+
+        - name: Import the MySQL RPM key
+          rpm_key:
+            state: present
+            key: https://repo.mysql.com/RPM-GPG-KEY-mysql
+
+        - name: Install MySQL Community Edition repo
+          yum:
+            name: https://dev.mysql.com/get/mysql80-community-release-el{{ ansible_distribution_major_version }}-1.noarch.rpm
+            state: present
+
+        - name: Disable MySQL repos
+          ini_file:
+            path: /etc/yum.repos.d/mysql-community.repo
+            section: mysql{{ item }}-community
+            option: enabled
+            value: "0"
+            mode: 0644
+          loop:
+            - "55"
+            - "56"
+            - "57"
+            - "80"
+
+        - name: Enable MySQL 5.5 repo
+          ini_file:
+            path: /etc/yum.repos.d/mysql-community.repo
+            section: mysql55-community
+            option: enabled
+            value: "1"
+            mode: 0644
+
+        - name: Install MySQL Community Edition
+          package:
+            name: mysql-community-server
+            state: present
+
+        - name: Start and enable MySQL server
+          service:
+            name: mysqld
+            enabled: true
+            state: started
+
+        - name: Install MySQL-python
+          package:
+            name: MySQL-python
+            state: present
+          when: discovered_interpreter_python == "/usr/bin/python"
+
+        - name: Install MySQL-python
+          package:
+            name: python3-PyMySQL
+            state: present
+          when: discovered_interpreter_python != "/usr/bin/python"
+      when: ("mysql" in inventory_hostname)
+
+    - name: Install Percona 5.5
+      block:
+        - name: Import the Percona packaging key
+          rpm_key:
+            state: present
+            key: https://repo.percona.com/yum/PERCONA-PACKAGING-KEY
+
+        - name: Import the Percona RPM GPG key
+          rpm_key:
+            state: present
+            key: https://repo.percona.com/yum/RPM-GPG-KEY-Percona
+
+        - name: Install Percona repo
+          yum:
+            name: https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+            state: present
+
+        - name: Install Percona 5.5
+          yum:
+            name: Percona-Server-server-55
+            state: present
+
+        - name: Start and enable Percona server
+          service:
+            name: mysql
+            enabled: true
+            state: started
+      when: ("percona" in inventory_hostname and ansible_os_family|lower == "redhat")
+...

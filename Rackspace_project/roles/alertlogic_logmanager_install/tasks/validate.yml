@@ -1,0 +1,40 @@
+---
+- name: Check if agent file exists
+  stat:
+    path: '/etc/init.d/al-agent'
+  register: al_agent_file
+
+- name: Validate the agent
+  shell: >
+    /etc/init.d/al-agent validate \
+      --key {{ registration_key }}
+  failed_when: "false"
+  ignore_errors: "yes"
+  changed_when: "false"
+  when: al_agent_file.stat.exists
+  register: al_agent_validation
+
+- name: Check if register UUID file exist
+  stat:
+    path: '/var/alertlogic/lib/agent/etc/host_uuid'
+  register: al_agent_uuid
+
+- name: Agent installed
+  set_fact:
+    al_is_installed: "yes"
+  when: al_agent_file.stat.exists
+
+- name: Agent registered and validated
+  set_fact:
+    al_is_validated: "yes"
+  when: >
+    al_agent_file.stat.exists and
+    al_agent_validation.rc == 0
+
+- name: Agent previously registered
+  set_fact:
+    al_is_registered: "yes"
+  when: >
+    al_agent_uuid.stat.exists and
+    al_agent_validation.rc != 0
+...

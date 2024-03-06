@@ -1,0 +1,18 @@
+---
+- name: Save original running MySQL version
+  set_fact:
+    original_mysql_version: "{{ mysql.version.full }}"
+
+- name: Show Current MySQL version and upgrade
+  debug:
+    msg: "Upgrading to {{ upgrade_version }} from {{ mysql.version.major | string + '.' + mysql.version.minor | string }}"
+
+- name: Upgrade MySQL in stages
+  include_tasks: mysql_staged_upgrade.yml
+  loop:
+    - "5.5"
+    - "5.6"
+    - "5.7"
+    - "8.0"
+  loop_control:
+    loop_var: outer_item

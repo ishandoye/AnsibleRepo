@@ -1,0 +1,20 @@
+---
+# Default values for AD domain join
+
+ALLOW_GROUPS: ""
+DC: 'unknown'
+DNSSERVERS: ""
+DOMAIN: ""
+ENUMERATE: "n"
+JOINACCT: ""
+JOINAGAIN: "n"
+rs_customer: ""
+type: "intensive"
+WORKGROUP: "magic"
+resolv_conf: "/etc/resolv.conf"
+
+default_allow_groups:
+  intensive: "{{ rs_customer }}-RAX@intensive.int,{{ rs_customer }}-AllUsers"
+  globalrs: "{{ rs_customer}}-AllUsers@globalrs.rack.space"
+  customer: "n"
+...

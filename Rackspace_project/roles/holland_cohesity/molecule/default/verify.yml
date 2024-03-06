@@ -1,0 +1,147 @@
+---
+- name: Verify rs-holland-cohesity install/replacement
+  hosts: all
+  gather_facts: true
+  module_defaults:
+    assert:
+      quiet: true
+  vars:
+    el_py2_pkgs:
+      - python-configobj
+      - python-setuptools
+      - MySQL-python
+      - python2-pid
+    el_py3_pkgs:
+      - python3-configobj
+      - python3-setuptools
+      - python3-PyMySQL
+      - python3-pid
+    required_pkgs:
+      redhat:
+        - rs-holland-cohesity
+        - holland
+        - holland-common
+        - "{{ (ansible_distribution_major_version | int <= 7) |
+               ternary(el_py2_pkgs, el_py3_pkgs) }}"
+      el7_py3:
+        - rs-holland-py3-cohesity
+        - rs-holland-py3
+        - rs-holland-py3-common
+        - python3-configobj
+        - python36-pid
+        - python36-PyMySQL
+      debian:
+        - rs-holland-cohesity
+        - holland
+        - python3-setuptools
+        - python3-configobj
+        - python3-pymysql
+    unwanted_pkgs:
+      redhat:
+        - rs-holland-config
+      el7_py3:
+        - rs-holland-config
+        - holland
+      debian:
+        - rs-holland-config
+        - holland-common
+        - holland-commvault
+    pkg_selector: >-
+      {{ (el7_py3 is defined) | ternary('el7_py3', ansible_os_family | lower) }}
+    holland_conf_backups:
+      - /etc/holland/holland.conf
+      - /etc/holland/backupsets/default.conf
+      - /etc/holland/providers/mysqldump.conf
+    check_config_backups: >-
+      {{
+        (has_rs_holland_cfg | default(false) and install_rs_holland_cfg | bool)
+      }}
+  tasks:
+    - name: Collect installed package list
+      ansible.builtin.package_facts:
+
+    - name: Verify required packages are installed
+      ansible.builtin.assert:
+        that:
+          - required_pkgs[pkg_selector] | flatten |
+              difference(packages.keys()) | length == 0
+        fail_msg: |-
+          Required packages missing:
+          {{
+            required_pkgs[pkg_selector] | flatten | difference(packages.keys())
+          }}
+
+    - name: Verify unwanted packages aren't installed
+      ansible.builtin.assert:
+        that:
+          - unwanted_pkgs[pkg_selector] | intersect(packages.keys()) |
+              length == 0
+        fail_msg: |-
+          Unwanted packages still installed:
+          {{ unwanted_pkgs[pkg_selector] | intersect(packages.keys()) }}
+
+    - name: Check config backups
+      block:
+        - name: Find config & backup files
+          ansible.builtin.stat:
+            path: "{{ item }}"
+            get_checksum: true
+          register: configs
+          loop: >-
+            {{
+              holland_conf_backups + holland_conf_backups | map(
+                'regex_replace', '$', '.backup') | list +
+                ['/etc/holland/backupsets/extra.conf']
+            }}
+
+        - name: Verify configs & backups match
+          ansible.builtin.assert:
+            that:
+              - (configs.results | selectattr('item', 'eq', item) |
+                  map(attribute='stat') | first)['checksum'] ==
+                (configs.results | selectattr('item', 'eq', item + '.backup') |
+                  map(attribute='stat') | first)['checksum']
+          loop: "{{ holland_conf_backups }}"
+
+        - name: Verify 'extra' backupset config is present
+          ansible.builtin.assert:
+            that:
+              - configs.results | selectattr('item', 'eq', item) |
+                 map(attribute='stat') | list | length == 1
+          loop:
+            - /etc/holland/backupsets/extra.conf
+      when: check_config_backups
+
+    - name: Check if 'backupsets' option in holland.conf is correct
+      community.general.ini_file:
+        path: /etc/holland/holland.conf
+        create: false
+        section: holland
+        option: backupsets
+        value: >-
+          {{ check_config_backups | ternary('default, extra', 'default ') }}
+        state: present
+        backup: true
+      register: backupsets_conf
+      check_mode: true
+      diff: true
+      failed_when: backupsets_conf is changed
+
+    - name: Check repo config on Debian/Ubuntu
+      block:
+        - name: Get apt-cache policy output
+          ansible.builtin.command:
+            cmd: apt-cache policy
+          register: apt_cache_policy
+          changed_when: false
+
+        - name: >-
+            Verify there are no errors or warnings in the apt-cache policy
+            output, and holland is pinned
+          ansible.builtin.assert:
+            that:
+              - apt_cache_policy.stderr_lines | select('match', '[EW]:') |
+                list | length == 0
+              - apt_cache_policy.stdout is
+                  search('^Pinned packages:\n\s+holland', multiline=true)
+      when: ansible_os_family == "Debian"

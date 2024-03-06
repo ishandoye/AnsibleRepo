@@ -1,0 +1,13 @@
+---
+- name: Verify plesk configuration by checking the existence of psa.conf file
+  stat:
+    path: /etc/psa/psa.conf
+  register: psa_conf
+  failed_when: false
+
+- include: plesk.yml
+  when: psa_conf.stat.exists == True
+
+- include: non_plesk.yml
+  when: psa_conf.stat.exists == False
+

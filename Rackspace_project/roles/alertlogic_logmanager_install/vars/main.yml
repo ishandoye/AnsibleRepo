@@ -1,0 +1,35 @@
+al_host: vaporator.alertlogic.com
+al_url: 'https://scc.alertlogic.net/software/'
+al_pkgs:
+  'RedHat':
+    'x86_64': 'al-agent-LATEST-1.x86_64.rpm'
+    'i686': 'al-agent-LATEST-1.i386.rpm'
+  'Debian':
+    'x86_64': 'al-agent_LATEST_amd64.deb'
+    'i686': 'al-agent_LATEST_i386.deb'
+al_pkg: "{{ al_pkgs[ansible_os_family][ansible_machine] }}"
+al_pkg_file: "/tmp/{{ al_pkg }}"
+syslog_source:
+  'RedHat': "s_sys"
+  'Debian': "s_src"
+syslog_src: "{{ syslog_source[ansible_os_family] }}"
+syslog_confs:
+  rsyslog:
+    file: '/etc/rsyslog.conf'
+    lines:
+      - regexp: '^\*\.\* @@127.0.0.1:1514;RSYSLOG_FileFormat$'
+        line: '*.* @@127.0.0.1:1514;RSYSLOG_FileFormat'
+  syslog-ng:
+    file: '/etc/syslog-ng/syslog-ng.conf'
+    lines:
+      - regexp: '^destination d_alertlogic \{tcp\("localhost" port\(1514\)\);\};$'
+        line: 'destination d_alertlogic {tcp("localhost" port(1514));};'
+      - regexp: '^log \{ source\({{ syslog_src }}\); destination\(d_alertlogic\); };$'
+        line: 'log { source({{ syslog_src }}); destination(d_alertlogic); };'
+
+syslog_conf: "{{ syslog_confs[syslog_daemon] }}"
+supported_distros:
+ centos: 6
+ redhat: 6
+ oraclelinux: 7
+ ubuntu: 14

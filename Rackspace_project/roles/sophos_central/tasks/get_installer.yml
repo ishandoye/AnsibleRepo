@@ -1,0 +1,104 @@
+---
+- name: Block to wrap looking up installer links
+  block:
+    - name: Fail if we do not have a rackertoken when we need one
+      ansible.builtin.fail:
+        msg: No RACKERTOKEN found in the environment
+      when: not rackertoken | default(false)
+
+    # Sample response:
+    # {
+    #     "data": [
+    #         {
+    #             "account_id": "12345",
+    #             "api_host": "https://api-eu01.central.sophos.com",
+    #             "device_ids": ["98675"],
+    #             "enrolled": true,
+    #             "linux": "https://path/to/SophosSetup.sh",
+    #             "tenant_id": "ac396033-65e0-429f-9ceb-53dfb5226500",
+    #             "tenant_name": "RCN-000-000-000:Customer account name",
+    #             "windows": "https://path/to/SophosSetup.exe"
+    #         }
+    #     ],
+    #     "error": false,
+    #     "msg": "Success"
+    # }
+    - name: Request installer links from stepladder
+      ansible.builtin.uri:
+        method: POST
+        url: "https://{{ stepladder_host }}{{ stepladder_api_path }}"
+        validate_certs: "{{ stepladder_host == default_stepladder_host }}"
+        headers:
+          X-Auth-Token: "{{ rackertoken }}"
+        body_format: json
+        body: "{{ {'devices': ansible_play_hosts} }}"
+      delegate_to: localhost
+      ignore_errors: true  # will report failure in next task
+      run_once: true
+      delegate_facts: true
+      register: installer_links
+      no_log: true
+
+    - name: Fail on error from stepladder
+      ansible.builtin.fail:
+        msg: |-
+          An error occurred retrieving the Sophos installer links:
+          HTTP status: {{ installer_links.status | default("none") }}
+          msg: {{ installer_links.json.msg | default(
+              'Unknown error - see full output') }}
+      when: installer_links.status != 200
+      delegate_to: localhost
+      run_once: true
+
+    - name: Parse result from stepladder
+      ansible.builtin.set_fact:
+        account_data: >-
+          {{
+            installer_links.json.data |
+            selectattr("device_ids", "contains", inventory_hostname_short) |
+            first
+          }}
+
+    - name: Fail if account is not enrolled for Sophos Central
+      ansible.builtin.fail:
+        msg: >-
+          Account ID {{ account_data.account_id }}
+          is not enrolled for Sophos Central
+      when: not account_data.enrolled
+
+    - name: Extract installer links from stepladder response
+      ansible.builtin.set_fact:
+        linux_installer: "{{ account_data.linux }}"
+  when: not linux_installer
+  # End of block for getting installer links
+
+- name: Quit if we can't get the installer link
+  ansible.builtin.fail:
+    msg: Unable to find Sophos installer link
+  when: linux_installer is none
+
+- name: Download installer(s) or report failure
+  block:
+    - name: Download installer(s)
+      ansible.builtin.get_url:
+        url: "{{ linux_installer }}"
+        dest: "{{ download_dir }}/SophosSetup.sh"
+        force: true
+        mode: 0750
+      register: installer_script
+      until:
+        - installer_script.status_code is defined
+        - installer_script.status_code == 200
+      retries: 3
+      delay: 10
+      become: true
+  rescue:
+    - name: Failed to download installer
+      ansible.builtin.fail:
+        msg: |-
+          Failed to download installer from {{ linux_installer }}
+          HTTP Status: {{ installer_script.status_code | default ("None") }}
+          Msg: {{
+            installer_script.msg | default("None") | regex_replace('[<>]')
+          }}
+          If no HTTP status, check firewall allows outbound connections

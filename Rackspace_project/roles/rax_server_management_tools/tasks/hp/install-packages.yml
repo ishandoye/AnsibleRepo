@@ -1,0 +1,11 @@
+---
+
+- name: Install hp packages
+  package:
+    name: "{{ item }}"
+    state: latest
+  with_items: "{{ hp_install_pkgs }}"
+
+- name: Ensure hp services are started/enabled
+  service: "name={{ item }} enabled=yes state=started"
+  with_items: "{{ hp_services_to_enable }}"

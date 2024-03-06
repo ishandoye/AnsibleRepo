@@ -1,0 +1,8 @@
+[hp-spp-{{ hp_server_gen }}]
+name = HP Service Pack for Proliant
+baseurl = {{ hp_spp_url }}/rhel/$releasever/$basearch/current
+enabled = 1
+gpgcheck = 1
+gpgkey = {{ hp_sdr_url }}/hpePublicKey2048_key1.pub
+         {{ hp_sdr_url }}/hpPublicKey2048_key1.pub
+exclude = kmod-elx-lpfc*

@@ -1,0 +1,132 @@
+{
+    "720573-u18.rackersupport.com": [
+        "720573"
+    ],
+    "_meta": {
+        "hostvars": {
+            "720573": {
+                "ansible_become_pass": "4Mn90QSBI5LH",
+                "ansible_host": "184.106.41.64",
+                "ansible_port": 22,
+                "ansible_ssh_pass": "4Mn90QSBI5LH",
+                "ansible_user": "rack",
+                "rs_ctkapi_info": {
+                    "account_manager": "Ginger Lee",
+                    "account_name": "Linux Support Test Account",
+                    "account_num": "27329",
+                    "account_service_level": "Managed",
+                    "admin_pass": "PjU5YKeYRYpL",
+                    "admin_user": "root",
+                    "bdc": "Ginger Lee",
+                    "behind": [],
+                    "datacenter": "ORD1",
+                    "dmgs": "Device owner: Ryan Stark\nDevice owner Desk Phone: 506-1112\nDevice owner Cell Phone: 210-859-9477\nDevice owner Email: starkindustries@rackspace.com\nDevice owner Manager: Keith Ross\nDevice owner Manager Email: keith.ross@rackspace.com\nDevice owner Department: Engine Room Linux Support\n\nSECURITY / APPROVALS / PERMISSIONS / CHANGE CONTROL (DEVICE LEVEL)\n\n============================\n\n(Any specific compliance codes they are meeting (PCI, HIPPA, etc))\n\n(Tasks requiring specific approvals)\n\n============================\n\nLOGIN CONSIDERATION / NOTES (DEVICE LEVEL)\n\n============================\n\n(Special login considerations/notes)\n\n============================\n\nSPECIAL NOTES (DEVICE LEVEL)\n\nPlesk license PLSK.01297418 was temporarily assigned to this device. We need to remove this license once we finished working with this device and Plesk.\n============================\n\n(Relevant device level notes)\n\n============================\n\nDEVICE FUNCTION (DEVICE LEVEL)\n\n============================\n\n(Relevant device description)\n\n============================\n\nDevice Management Guidelines updated by Ryan Stark on 2016/08/17",
+                    "drac": null,
+                    "drac_gateway": null,
+                    "drac_pass": [],
+                    "drac_user": [],
+                    "drac_vlan": null,
+                    "failover_device": null,
+                    "gateway": "184.106.41.65",
+                    "has_managed_backup": true,
+                    "icon_path": "https://28616ea5aab979dce92c-69a5bc1f8c3c585c4f658970ef961bb7.ssl.cf2.rackcdn.com/vmlinux.gif",
+                    "in_front": [
+                        860007,
+                        859998
+                    ],
+                    "ip_addresses": [
+                        "10.132.254.165",
+                        "184.106.41.64"
+                    ],
+                    "is_cluster": false,
+                    "lead_tech": null,
+                    "login_method": "Password Auth",
+                    "nat_comments": [],
+                    "netmask": "255.255.255.240",
+                    "nickname": "u18",
+                    "online_date": "2015-11-16 12:53:53",
+                    "os_type": "Linux",
+                    "os_version": "Ubuntu 18.04 LTS",
+                    "platform_model": "Virtual Machine Linux",
+                    "platform_name": "Virtual Machine Linux",
+                    "port": [],
+                    "primary_ip": "184.106.41.64",
+                    "primary_userid": "rstark",
+                    "primary_userid_password": "xc8gyyAi9Ghx",
+                    "private_gateway": "172.24.16.1",
+                    "private_ip": "172.24.16.64",
+                    "private_netmask": "255.255.252.0",
+                    "protocol": [],
+                    "rack_password": "4Mn90QSBI5LH",
+                    "rba_login_user": "",
+                    "rba_login_user_password": "",
+                    "root_method": "sudo",
+                    "root_method_id": {
+                        "attributes": "https://ws.core.rackspace.com/ctkapi/attributes/Computer.ComputerRootAccess",
+                        "class_name": "Computer.ComputerRootAccess",
+                        "class_type": "Value_Table",
+                        "description": "sudo",
+                        "id": 2,
+                        "load_value": "id",
+                        "methods": "https://ws.core.rackspace.com/ctkapi/methods/Computer.ComputerRootAccess",
+                        "name": "sudo",
+                        "values": "https://ws.core.rackspace.com/ctkapi/values/Computer.ComputerRootAccess"
+                    },
+                    "segment": "ENT Z",
+                    "server": 720573,
+                    "server_name": "720573-u18.rackersupport.com",
+                    "service_level_name": "Managed",
+                    "service_levels": {
+                        "attribute": "service_products",
+                        "subattributes": []
+                    },
+                    "servicenet_ips": [
+                        "10.132.254.165"
+                    ],
+                    "servicenet_vlan_ids": [
+                        2837
+                    ],
+                    "ssh_key_passphrase": "",
+                    "ssh_key_private": "",
+                    "status": "Online/Complete",
+                    "status_id": 12,
+                    "team": "ENTZ-7MIX"
+                },
+                "rs_customer": "27329",
+                "rs_datacenter": "ORD1",
+                "rs_device_id": "720573",
+                "rs_device_name": "720573-u18.rackersupport.com",
+                "rs_target_sla": "Managed",
+                "rs_obm_ip": null,
+                "rs_obm_pass": null,
+                "rs_obm_user": null,
+                "rs_ohthree_info": null,
+                "rs_os_sku": "Ubuntu 18.04 LTS",
+                "rs_platform": "Virtual Machine",
+                "rs_platform_vendor": "VMWare",
+                "rs_public_cloud_info": null,
+                "rs_region": "ORD",
+                "rs_server": "720573",
+                "rs_server_type": "core"
+            }
+        }
+    },
+    "linux": [
+        "720573"
+    ],
+    "ord": [
+        "720573"
+    ],
+    "ord1": [
+        "720573"
+    ],
+    "ubuntu_18.04_lts": [
+        "720573"
+    ],
+    "virtual_machine": [
+        "720573"
+    ],
+    "vmware": [
+        "720573"
+    ]
+}

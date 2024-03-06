@@ -1,0 +1,2 @@
+---
+sftp_shell: "{{ '/usr/sbin/nologin' if ansible_os_family == 'Debian' else '/sbin/nologin' }}"

@@ -1,0 +1,70 @@
+- name: Check for path {{ conf_path1 }}
+  stat:
+    path: "{{ conf_path1 }}"
+  register: conf_path1_check
+
+- name: Set conf_fullpath to {{ conf_path1 }}/{{ nim_cdm_conf }}
+  set_fact:
+    conf_fullpath: "{{ conf_path1 }}/{{ nim_cdm_conf }}"
+  when: conf_path1_check.stat.exists
+
+- name: Check for path {{ conf_path2 }} if {{ conf_path1 }} did not exist.
+  stat:
+    path: "{{ conf_path2 }}"
+  register: conf_path2_check
+  when: not conf_path1_check.stat.exists
+
+- name: Set conf_fullpath to {{ conf_path2 }}/{{ nim_cdm_conf }}
+  set_fact:
+    conf_fullpath: "{{ conf_path2 }}/{{ nim_cdm_conf }}"
+  when: not conf_path1_check.stat.exists and conf_path2_check.stat.exists
+
+- name: Fail if neither {{ conf_path1 }} or {{ conf_path2 }} exist.
+  fail:
+    msg: "Neither {{ conf_path1 }} or {{ conf_path2 }} exist. Log in and check nimbus installation!"
+  when: not conf_path1_check.stat.exists and not conf_path2_check.stat.exists
+
+- name: "Create backup directory under /home/rack"
+  file:
+    path: /home/rack/{{ ticket_num }}
+    state: directory
+
+- name: "Backup cdm.cfg to backup dir"
+  copy:
+    src: "{{ conf_fullpath }}"
+    remote_src: yes
+    dest: "/home/rack/{{ ticket_num }}/cdm.cfg.bak.{{ ansible_date_time.date }}.{{ ansible_date_time.time }}"
+
+- name: "Number of CPU cores"
+  debug: var=cpu_count
+
+- name: "Correct proc_q_len"
+  debug: var=proc_q_len
+
+- name: "Change to correct proc_q_len and set active"
+  nimbus_config:
+    path: "{{ conf_fullpath }}"
+    update: "{{ cpu_proc_q_len }}"
+  notify: restart nimbus
+
+- name: "Ensure CPU ERROR threshold is set and active if chosen"
+  set_fact:
+    error_is_active: "yes"
+  when: cpu_error_prompt|upper == 'Y'
+
+- name: "Ensure CPU WARNING threshold is set and active if chosen"
+  set_fact:
+    warning_is_active: "yes"
+  when: cpu_warning_prompt|upper == 'Y'
+
+- name: set CPU ERROR threshold parameters
+  nimbus_config:
+    path: "{{ conf_fullpath }}"
+    update: "{{ cpu_error }}"
+  notify: restart nimbus
+
+- name: set CPU WARNING threshold parameters
+  nimbus_config:
+    path: "{{ conf_fullpath }}"
+    update: "{{ cpu_warning }}"
+  notify: restart nimbus

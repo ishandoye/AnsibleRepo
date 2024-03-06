@@ -1,0 +1,90 @@
+---
+- name: Install Plesk web components
+  command: >
+    /usr/local/psa/admin/sbin/autoinstaller
+    --select-release-current
+    --install-component awstats
+    --install-component config-troubleshooter
+    --install-component letsencrypt
+    --install-component mod-bw
+    --install-component mod_perl
+    --install-component nginx
+    --install-component nodejs
+    --install-component php7.2
+    --install-component php7.3
+    --install-component wp-toolkit
+  register: plesk_web_install
+  retries: 3
+  delay: 10
+  until: not "Update operation was locked" in plesk_web_install.stdout
+  changed_when: not "You already have the latest version" in plesk_web_install.stderr
+
+- name: Install Plesk mail components
+  command: >
+    /usr/local/psa/admin/sbin/autoinstaller
+    --select-release-current
+    --install-component dovecot
+    --install-component horde
+    --install-component postfix
+    --install-component roundcube
+    --install-component spamassassin
+  register: plesk_mail_install
+  retries: 3
+  delay: 10
+  until: not "Update operation was locked" in plesk_mail_install.stdout
+  changed_when: not "You already have the latest version" in plesk_mail_install.stderr
+
+- name: Install additional Plesk system components
+  command: >
+    /usr/local/psa/admin/sbin/autoinstaller
+    --select-release-current
+    --install-component fail2ban
+    --install-component health-monitor
+    --install-component git
+    --install-component pmm
+    --install-component resctrl
+    --install-component selinux
+  register: plesk_misc_install
+  retries: 3
+  delay: 10
+  until: not "Update operation was locked" in plesk_misc_install.stdout
+  changed_when: not "You already have the latest version" in plesk_misc_install.stderr
+
+- name: Enable update notifications
+  command: /usr/local/psa/bin/server_pref --update -release-tier {{ release_tier }}
+
+- name: Enable automatic updates
+  command: /usr/local/psa/bin/server_pref --update -autoupdates true
+
+- name: Set up default service plan
+  block:
+    - name: Create default service plan
+      command: /usr/local/psa/bin/service_plan --create-default
+
+    # The default of 5 for pm.maxchildern is much too low
+    # This implements solution given at
+    # https://support.plesk.com/hc/en-us/articles/115001201949
+    - name: Create custom settings file for PHP-FPM
+      copy:
+        src: plesk_php_fpm_settings.conf
+        dest: "/root/plesk_php_fpm_settings.conf"
+
+    - name: Apply custom settings for PHP-FPM
+      command: >
+        /usr/local/psa/bin/service_plan
+        --update-php-settings 'Default Domain'
+        -settings "/root/plesk_php_fpm_settings.conf"
+
+  when: not "plsk000000000000" in plesk_keyinfo.stdout|lower
+
+- name: Reset hostname back to CORE server name
+  command: /usr/sbin/plesk bin server_pref --update -hostname {{ rs_target_name }}
+
+- name: Update auto update email notifications to use root@{{ rs_target_name }}
+  command: /usr/sbin/plesk bin server_pref --update -autoupdates-email-notification root@{{ rs_target_name }}
+
+- name: Restart rsyslog to ensure hostname change is picked up in logs
+  systemd:
+    name: rsyslog
+    state: restarted
+...

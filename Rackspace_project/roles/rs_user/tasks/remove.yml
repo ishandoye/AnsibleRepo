@@ -1,0 +1,15 @@
+---
+- name: Remove rack user
+  user:
+    name: rack
+    state: absent
+    remove: true
+
+- name: Remove rack user from sudoers
+  lineinfile:
+    path: /etc/sudoers
+    state: absent
+    regexp: '^%rack\s'
+    line: '%rack ALL=(ALL) ALL'
+    validate: '/usr/sbin/visudo -cf %s'
+...

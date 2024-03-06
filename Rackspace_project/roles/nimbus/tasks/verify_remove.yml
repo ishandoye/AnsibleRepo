@@ -1,0 +1,14 @@
+---
+- name: Initialize nimbus_found_dirs
+  set_fact:
+    nimbus_found_dirs: []
+
+- name: Check for nimbus directories
+  include_tasks: check_nimbus_dirs.yml
+
+- name: Ensure Nimbus is removed
+  fail:
+    msg: "Failed to remove Nimbus"
+  failed_when:
+    nimbus_found_dirs is defined and nimbus_found_dirs != []
+...

@@ -1,0 +1,40 @@
+- name: Ensure yum-utils is installed
+  yum:
+    name: yum-utils
+    state: present
+
+- name: Disable EPEL
+  command: yum-config-manager --disable *epel*
+  changed_when: false
+  ignore_errors: true
+
+- name: Disable IUS
+  command: yum-config-manager --disable *ius*
+  changed_when: false
+  ignore_errors: true
+
+- name: Add EPEL Vault for EL7
+  yum_repository:
+    name: epel-vault-7
+    description: EPEL Vault for EL7
+    baseurl: https://dl.fedoraproject.org/pub/epel/7/$basearch/
+    enabled: false
+    gpgcheck: true
+    gpgkey: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7
+    file: epel-archive-7
+  when:
+    - epelfound is defined
+    - ansible_distribution_major_version == 7
+
+- name: Add IUS Vault for EL7
+  yum_repository:
+    name: ius-vault-7
+    description: IUS Vault for EL7
+    baseurl: https://mirror.rackspace.com/ius/7/$basearch/
+    enabled: false
+    gpgcheck: true
+    gpgkey: https://mirror.rackspace.com/ius/RPM-GPG-KEY-IUS-7
+    file: ius-vault-7
+  when:
+    - iusfound is defined
+    - ansible_distribution_major_version == 7

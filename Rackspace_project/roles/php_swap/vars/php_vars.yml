@@ -1,0 +1,5 @@
+---
+php_package: "{{ php_packages_cmd.stdout_lines|intersect(php_toplevel_packages)|first }}"
+php_package_repo: "{{ (php_package_info.results|selectattr('yumstate', 'equalto', 'available')|first).repo }}"
+php_package_version: "{{ (php_package_info.results|selectattr('yumstate', 'equalto', 'available')|first).version }}"
+installed_fpm: "{{ php_fpm_running.stdout|default(false)|bool }}"

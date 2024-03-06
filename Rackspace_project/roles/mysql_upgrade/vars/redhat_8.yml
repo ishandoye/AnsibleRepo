@@ -1,0 +1,6 @@
+mariadb_service: "mariadb"
+percona_service: "mysql"
+mysql_service: "mysqld"
+mysql_community_repo_url: "https://dev.mysql.com/get/mysql80-community-release-el8-4.noarch.rpm"
+mariadb_base_repo: "https://mirror.rackspace.com/mariadb/yum"
+mariadb_versions: []

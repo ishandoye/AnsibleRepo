@@ -1,0 +1,49 @@
+---
+- name: Upgrade correct version
+  block:
+  - name: Upgrade my.cnf
+    include: upgrade_mycnf.yml
+
+  - name: Remove old Percona packages
+    include: remove.yml
+
+  - name: Set mysql_new_version
+    set_fact:
+      mysql_new_version: "{{ outer_item }}"
+
+  - name: Run Percona release setup command
+    command: percona-release setup ps{{ outer_item | regex_replace('\.') }}
+
+  - name: Install Percona (< 8.0 EL packages)
+    package:
+      name:
+        - Percona-Server-server-{{ outer_item | regex_replace('\.') }}
+        - Percona-Server-client-{{ outer_item | regex_replace('\.') }}
+        - Percona-Server-shared-{{ outer_item | regex_replace('\.') }}
+      state: present
+    register: mysql_packages
+    when: mysql_new_version != "8.0" and ansible_distribution != "Ubuntu"
+
+  - name: Install Percona (Ubuntu and 8.0 EL packages)
+    package:
+      name:
+        - percona-server-server
+        - percona-server-client
+      state: present
+    register: mysql_packages
+    when: mysql_new_version == "8.0" or ansible_distribution == "Ubuntu"
+
+  - name: Update my.cnf
+    command: cp -a /home/rack/{{ ticket_no }}/ansible_my.cnf{{ outer_item | regex_replace('\.') }} "{{ my_cnf }}"
+    # noqa 301
+    # This command will always overwrite the MySQL config file
+
+  - name: Run mysql_upgrade
+    include: upgrade.yml
+
+  - name: Re-gather MySQL raxfacts
+    raxfacts:
+      facts:
+        - mysql
+
+  when: outer_item is version(original_mysql_version, '>') and outer_item is version(upgrade_version, '<=')

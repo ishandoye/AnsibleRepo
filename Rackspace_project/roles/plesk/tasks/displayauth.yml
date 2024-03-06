@@ -1,0 +1,35 @@
+---
+- name: Provide one-time login
+  block:
+    - name: Generate login token
+      command: /usr/local/psa/bin/admin --get-login-link -user admin
+      register: plesk_login
+
+    - name: Extract login token
+      set_fact:
+        login_token: "{{ plesk_login.stdout_lines[1] | urlsplit('query') }}"
+
+    - name: Display one-time login
+      debug:
+        msg:
+          - Access Plesk using one-time login at {{ plesk_login.stdout_lines[1] }}
+          - "You may also append the given token at your preferred address:"
+          - /login?{{ login_token }}
+
+  when: plesk_password is not defined
+
+- name: Display login information including password
+  debug:
+    msg:
+      - "Login credentials for Plesk are:"
+      - "[b]Username:[/b] admin"
+      - "[b]Password:[/b] {{ plesk_password }}"
+  when: plesk_password is defined
+
+- name: Display licensing reminder
+  debug:
+    msg:
+      - "REMINDER:"
+      - "Check device SKUs and install a plesk license if necessary."
+      - "Refer to https://one.rackspace.com/display/Linux/Linux+Plesk+Fresh+Install+of+Plesk"
+...

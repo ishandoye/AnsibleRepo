@@ -1,0 +1,7 @@
+---
+php_newrelic_path: 
+        - /etc/php.d/newrelic.ini
+php_fpm_srv: php-fpm
+apache_srv: httpd
+apache_pid_path: /var/run/httpd/httpd.pid
+php_fpm_pid_path: /var/run/php-fpm/php-fpm.pid 

@@ -1,0 +1,152 @@
+---
+- name: Prepare database servers
+  hosts: all
+  gather_facts: true
+  gather_subset:
+    - min
+  tasks:
+    - name: Update packages
+      package:
+        name: '*'
+        state: latest
+    - name: Install prereqs
+      package:
+        name:
+          - wget
+          - gpg
+          - python3-pymysql
+        update_cache: true
+
+    - name: Configure MariaDB server
+      block:
+        - name: Add MariaDB signing key
+          apt_key:
+            url: https://mariadb.org/mariadb_release_signing_key.asc
+            state: present
+
+        - name: Enable targeted MariaDB deb repo
+          apt_repository:
+            repo: deb http://mirror.rackspace.com/mariadb/repo/10.3/ubuntu {{ ansible_distribution_release }} main
+
+        - name: Enable targeted MariaDB deb-src repo
+          apt_repository:
+            repo: deb-src http://mirror.rackspace.com/mariadb/repo/10.3/ubuntu {{ ansible_distribution_release }} main
+
+        - name: Install MariaDB server
+          package:
+            name:
+              - mariadb-server
+              - mariadb-test
+            state: present
+
+        - name: Start and enable MariaDB server
+          service:
+            name: mysql
+            state: started
+            enabled: true
+
+        - name: Create test database
+          mysql_db:
+            name: world
+            state: present
+
+        - name: Populate test database schema
+          shell:
+            cmd: mysql world < /usr/share/mysql/mysql-test/include/world_schema.inc
+            creates: /var/lib/mysql/world/Country.frm
+
+        - name: Populate test database data
+          shell:
+            cmd: mysql world < /usr/share/mysql/mysql-test/include/world.inc
+
+      when: ("mariadb" in inventory_hostname)
+
+    - name: Install MySQL Community Edition server
+      block:
+        - name: Install mysql-apt-config package
+          apt:
+            deb: https://dev.mysql.com/get/mysql-apt-config_0.8.22-1_all.deb
+
+        - name: Update debconf database for targeted MySQL version
+          debconf:
+            name: mysql-apt-config
+            question: mysql-apt-config/select-server
+            value: mysql-5.7
+            vtype: select
+          when: ansible_distribution_release == "bionic"
+          register: version_reconfigure
+
+        - name: Update debconf database for targeted MySQL version
+          debconf:
+            name: mysql-apt-config
+            question: mysql-apt-config/select-server
+            value: mysql-8.0
+            vtype: select
+          when: ansible_distribution_release == "focal"
+          register: version_reconfigure
+
+        - name: Update debconf database to select product
+          debconf:
+            name: mysql-apt-config
+            question: mysql-apt-config/select-product
+            value: Ok
+            vtype: select
+          register: select_product_reconfigure
+
+        - name: Reconfigure mysql-apt-config deb
+          command: dpkg-reconfigure mysql-apt-config
+          environment:
+            DEBIAN_FRONTEND: noninteractive
+          when: version_reconfigure.changed or select_product_reconfigure.changed
+
+        - name: Install mysql-server
+          apt:
+            name: mysql-community-server
+            update_cache: true
+
+        - name: Start and enable MySQL server
+          service:
+            name: mysql
+            state: started
+            enabled: true
+      when: ("mysql" in inventory_hostname)
+
+    - name: Install Percona
+      block:
+        - name: Install percona-release deb
+          apt:
+            deb: https://repo.percona.com/apt/percona-release_latest.{{ ansible_distribution_release }}_all.deb
+
+        - name: Run Percona release setup command
+          command: percona-release setup ps57
+          when: ansible_distribution_release == "bionic"
+
+        - name: Run Percona release setup command
+          command: percona-release setup ps80
+          when: ansible_distribution_release == "focal"
+
+        - name: Install Percona
+          package:
+            name:
+              - percona-server-server-5.7
+              - percona-server-client-5.7
+            state: present
+            update_cache: true
+          when: ansible_distribution_release == "bionic"
+
+        - name: Install Percona
+          package:
+            name:
+              - percona-server-server
+              - percona-server-client
+            state: present
+            update_cache: true
+          when: ansible_distribution_release == "focal"
+
+        - name: Start and enable MySQL server
+          service:
+            name: mysql
+            state: started
+            enabled: true
+      when: ("percona" in inventory_hostname)
+...

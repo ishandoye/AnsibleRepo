@@ -1,0 +1,5 @@
+---
+service_name: open-vm-tools
+valid_os: '{{ ansible_distribution == "Ubuntu" and
+           ansible_distribution_major_version in [ "14", "16", "18" ] }}'
+...

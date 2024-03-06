@@ -1,0 +1,87 @@
+---
+- name: Fail if OS is not supported
+  ansible.builtin.fail:
+    msg: >
+      {{ ansible_distribution }} {{ ansible_distribution_version }}
+      is not supported
+  when: ansible_distribution_major_version | int not in
+          supported_distros[ansible_distribution | lower] | default([])
+
+- name: Collect package facts
+  package_facts:
+    manager: rpm
+
+- name: Get repolist
+  command: dnf repolist
+  changed_when: false
+  register: repo_list
+
+- name: Get repo ids from repolist
+  set_fact:
+    repo_ids: "{{ repo_list.stdout_lines[1:] | map('split') | map(attribute=0) | list }}"
+
+- name: Fail if EPEL repo is not enabled
+  fail:
+    msg: EPEL repo is required and is not detected as enabled.
+  when: repo_ids | select("search", "^(epel|rackspace\-epel)$") | list | length == 0
+
+- name: Fail if CRB repo is not enabled
+  fail:
+    msg: CRB repo is required and is not detected as enabled.
+  when:
+    - not (ansible_distribution in ["Rocky", "AlmaLinux"] and ansible_distribution_major_version == "8")
+    - repo_ids | select("search", "(codeready-builder\-for\-rhel.*\-rpms$|\-crb|^crb)$") | list | length == 0
+
+- name: Fail if Powertools repo is not enabled (Rocky/Alma 8 only)
+  fail:
+    msg: Powertools repo is required and is not detected as enabled.
+  when:
+    - ansible_distribution in ["Rocky", "AlmaLinux"] and ansible_distribution_major_version == "8"
+    - repo_ids | select("search", "(?i)^(powertools|rackspace-powertools|rackspace-almalinux-powertools)$") | list | length == 0
+
+  # Automatic updates are temporarily disabled
+  # during installation to prevent lock conflicts
+- name: Disable auter
+  command: auter --disable
+  notify: Enable auter
+  when: packages['auter'] is defined
+
+- name: Disable yum-cron
+  service:
+    name: yum-cron
+    enabled: false
+    state: stopped
+  notify: Enable yum-cron
+  when: packages['yum-cron'] is defined
+
+- name: Wait five minutes for yum to complete
+  wait_for:
+    path: /var/run/yum.pid
+    state: absent
+    timeout: 300
+
+- name: Install and initialise Plesk
+  include_tasks: installation.yml
+  when: packages['plesk-core'] is not defined
+
+- name: Check Plesk license
+  command: /usr/local/psa/bin/keyinfo --list
+  register: plesk_keyinfo
+  changed_when: false
+
+- name: Install license
+  include_tasks: license.yml
+  when:
+    - rs_server_type is defined
+    - rs_server_type == "core"
+    - racker_token is defined
+    - ("plsk000000000000" in plesk_keyinfo.stdout|lower)
+
+  # The tasks in customization.yml are idempotent. Plesk will automatically
+  # detect if anything needs to be changed on its own.
+- name: Customize Plesk
+  include_tasks: customization.yml
+
+- name: Display login information
+  include_tasks: displayauth.yml
+...

@@ -1,0 +1,10 @@
+---
+- name: Get rollback file  # noqa 303
+  # sed is not being used to replace text
+  command: sed '/####/Q' /home/rack/{{ ticket_no }}/mysql_upgrade_packages.txt
+  changed_when: false
+  register: rollback
+
+- name: Display rollback message
+  debug:
+    msg: "Reinstall the folowing packages and restore from the backup taken to rollback {{ rollback.stdout_lines }}"

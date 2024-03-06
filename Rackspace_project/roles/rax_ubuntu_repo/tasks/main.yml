@@ -1,0 +1,71 @@
+---
+- name: Make sure server is supported
+  fail:
+    msg: >
+      This playbook does not support {{ ansible_distribution }}
+      {{ ansible_distribution_version }}
+  failed_when: >
+    ( ansible_distribution|lower not in ['ubuntu'] or
+      ansible_distribution_version not in ['14.04', '16.04', '18.04'] )
+
+- name: Unregister a server
+  include_tasks: unregister.yml
+  when: unregister|bool
+
+# I've chosen to enclose existing registration code in a block instead of moving
+# it to a separate file to minimize apparent changes to the code.
+- name: Register server
+  block:
+    - name: Handling auth for dedicated device
+      block:
+        - name: Verify cached token
+          include_tasks: verify_token.yml
+          when: not authenticate|bool
+
+        - name: Authenticate
+          include_tasks: authenticate.yml
+          when: authenticate|bool
+      when: rs_server_type == 'core'
+
+    - name: Install python-apt (required by apt_repository)
+      package:
+        name: python-apt
+        state: stable
+
+    - name: Add rackspace pub key
+      apt_key:
+        url: "{{ pub_path }}"
+        state: present
+
+    - name: Remove http rackspace repository
+      apt_repository:
+        repo: deb {{ plain_repo_url }} {{ ansible_distribution_release }} main
+        state: absent
+        filename: "{{ repo_name }}"
+
+    - name: Add https rackspace repository
+      apt_repository:
+        repo: deb {{ repo_url }} {{ ansible_distribution_release }} main
+        state: present
+        update_cache: "yes"
+        filename: "{{ repo_name }}"
+
+    - name: Handling registration for dedicated device
+      block:
+        - name: Install rs-inventory
+          package:
+            name: rs-inventory
+            state: latest
+
+        - name: Check if server is already registered
+          include_tasks: verify_registration.yml
+
+        - name: Register
+          include_tasks: register.yml
+          when: >
+            ( not registered or
+              force is defined )
+      when: rs_server_type == 'core'
+
+  when: not unregister|bool
+...

@@ -1,0 +1,20 @@
+---
+- name: Ensure Nimbus service is started - systemd
+  become: true
+  service:
+    name: nimbus
+    state: started
+    enabled: "yes"
+  when: ansible_service_mgr == 'systemd'
+  changed_when: "False"
+
+- name: Ensure Nimbus service is started - non-systemd
+  become: true
+  service:
+    name: nimbus
+    state: started
+    enabled: "yes"
+    pattern: nimbus
+  when: ansible_service_mgr != 'systemd'
+  changed_when: "False"
+...

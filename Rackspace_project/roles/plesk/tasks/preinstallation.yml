@@ -1,0 +1,36 @@
+---
+
+- name: Stop conflicting services
+  service:
+    name: "{{ item }}"
+    state: stopped
+  loop: "{{ stop_services }}"
+  failed_when: false
+
+- name: Remove conflicting packages
+  package:
+    name: "{{ remove_packages }}"
+    state: absent
+
+- name: Create tmpfiles.d config for plesk-disable-repo-check
+  ansible.builtin.template:
+    src: plesk_disable_repo_check.conf.j2
+    dest: "{{ disable_repo_check_tmpfiles_d_path }}"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Create plesk-disable-repo-check files in /tmp using systemd-tmpfiles
+  command: systemd-tmpfiles --create {{ disable_repo_check_tmpfiles_d_path }}
+
+- name: Add cron script to ensure plesk-disable-repo-check files persist
+  ansible.builtin.template:
+    src: plesk_disable_repo_check.j2
+    dest: /etc/cron.d/plesk-disable-repo-check
+    owner: root
+    group: root
+    mode: 0644
+    seuser: system_u
+    serole: object_r
+    setype: system_cron_spool_t
+...

@@ -1,0 +1,5 @@
+# Ensures Plesk skip flag files are created
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
+*/15 * * * * root systemd-tmpfiles --create {{ disable_repo_check_tmpfiles_d_path }} >/dev/null 2>&1

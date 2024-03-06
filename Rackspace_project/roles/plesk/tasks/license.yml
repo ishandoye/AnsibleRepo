@@ -1,0 +1,56 @@
+---
+- name: Retrieve and upload Plesk license
+  block:
+    - name: Retrieve license file
+      get_url:
+        url: "{{ plm_api_url }}/get/{{ rs_server }}"
+        dest: "/tmp/plesk_license_{{ rs_server }}.xml"
+        headers:
+          X-Auth-Token: "{{ racker_token }}"
+        timeout: 30
+      become: false
+      no_log: true
+      delegate_to: localhost
+      register: license_retrieval
+
+    - name: Output license retrieval result
+      debug:
+        msg: "{{ license_retrieval }}"
+        verbosity: 1
+
+    - name: Upload license file
+      copy:
+        src: /tmp/plesk_license_{{ rs_server }}.xml
+        dest: /tmp/plesk_license_{{ rs_server }}.xml
+
+    - name: Install license
+      command: >
+        /usr/local/psa/bin/license --install /tmp/plesk_license_{{ rs_server }}.xml
+      register: license_install_result
+      failed_when: not "license key was successfully installed" in license_install_result.stdout
+
+  rescue:
+    - name: Display URL to PLM documentation if license tasks fail
+      debug:
+        msg:
+          - Consider retrieving and installing license manually.
+          - Instructions available at https://one.rackspace.com/display/Linux/Plesk+License+Manager
+
+  always:
+    - name: Clean up local license file
+      file:
+        path: "/tmp/plesk_license_{{ rs_server }}.xml"
+        state: absent
+      become: false
+      delegate_to: localhost
+
+    - name: Clean up remote license file
+      file:
+        path: "/tmp/plesk_license_{{ rs_server }}.xml"
+        state: absent
+
+    - name: Recheck Plesk license
+      command: /usr/local/psa/bin/keyinfo --list
+      register: plesk_keyinfo
+      changed_when: false
+...

@@ -1,0 +1,203 @@
+---
+
+- name: Gather facts about the RHCS cluster
+  raxfacts:
+    facts:
+      - cluster
+
+- name: Ensure this is a RHCS cluster node
+  fail:
+    msg: Not a cluster node
+  when: not cluster
+
+- name: Gather Nimbus robot facts
+  nimbus_config:
+    path: "{{ nimbus_dir }}/robot/robot.cfg"
+    load_config: True
+  register: nimbus_robot
+
+- name: Warn when Nimbus Hub consistency can't be checked
+  fail:
+    msg: "First node of the cluster not within play_hosts! Nimbus Hub consistency won't be checked!"
+  when: nimbus_first_node_facts|length == 0
+  ignore_errors: True
+
+- name: Change the Nimbus Hub if necessary (all nodes in cluster must have the same)
+  nimbus_config:
+    path: "{{ nimbus_dir }}/robot/robot.cfg"
+    update: "{'controller': {
+                'hub': '{{ (nimbus_first_node_facts|first).nimbus_robot.config.controller.hub }}',
+                'hubip' : '{{ (nimbus_first_node_facts|first).nimbus_robot.config.controller.hubip }}',
+                'hubrobotname': '{{ (nimbus_first_node_facts|first).nimbus_robot.config.controller.hubrobotname }}',
+                'secondary_hub': '{{ (nimbus_first_node_facts|first).nimbus_robot.config.controller.secondary_hub }}',
+                'secondary_hubip': '{{ (nimbus_first_node_facts|first).nimbus_robot.config.controller.secondary_hubip }}',
+                'secondary_hubrobotname': '{{ (nimbus_first_node_facts|first).nimbus_robot.config.controller.secondary_hubrobotname }}'
+             } }"
+  when:
+    - nimbus_first_node_facts|length > 0
+    - cluster.local_node != cluster.first_node
+    - nimbus_robot.config.controller.hub != nimbus_hub_first_node
+  notify: restart nimbus
+
+- name: Check if cluster probe is running
+  shell: ps aux | grep '[n]imbus(cluster)' | wc -l
+  check_mode: False
+  changed_when: False
+  register: nimbus_clust_proc_count
+
+- name: Install cluster probe if necessary
+  include: cluster_probe_install.yml
+  when: nimbus_clust_proc_count.stdout == "0"
+
+- name: Read current CDM config
+  nimbus_config:
+    path: "{{ nimbus_dir }}/probes/system/cdm/cdm.cfg"
+    load_config: True
+  check_mode: False
+  changed_when: False
+  register: nimbus_cdm_cfg
+
+# CDM profiles that are made active in <cluster> section, not <disk>
+# (this is the case with cluster 3.42+ and cdm 5.72+ probes)
+- set_fact:
+    nimbus_cdm_cluster_active_fs: "{{ nimbus_cdm_cfg.config.cluster|dictsort|selectattr('1.disk', 'defined')\
+                                      |map(attribute='1.disk.alarm.fixed')|map('dictsort')|map('selectattr', '1.active', 'equalto', 'yes')\
+                                      |map('list')|sum(start=[])|map(attribute=0)|map('replace', '#', '/')|list }}"
+  when: "'cluster' in nimbus_cdm_cfg.config"
+
+- name: Activate CDM probe profiles
+  nimbus_config:
+    path: "{{ nimbus_dir }}/probes/system/cdm/cdm.cfg"
+    update: "{'disk': { 'alarm': { 'fixed': {
+                '{{ item|replace('/', '#') }}': {
+                    'active': 'yes'
+                }
+             } } } }"
+  when: item not in nimbus_cdm_cluster_active_fs
+  with_flattened: "{{ nimbus_local_services|map(attribute='fs')|list }}"
+  notify:
+    - wait for cluster probe to pick up new cdm/process cfg
+    - restart nimbus
+
+- name: Configure the Process probe, active node only
+  nimbus_config:
+    path: "{{ nimbus_dir }}/probes/system/processes/processes.cfg"
+    update: "{'watchers': {'{{ item.name }}': {
+                'active': 'yes',
+                'description': 'Monitoring {{ item.type }} for cluster service {{ item.name }}',
+                'action': 'none',
+                'process': '',
+                'scan_proc_cmd_line': 'yes',
+                'proc_cmd_line': '{{ item.cmdline_re }}',
+                'process_count_type': '',
+                'process_count': '',
+                'report': 'down',
+                'execute': '',
+                'cpu_num_check': '',
+                'cpu_usage_max': '',
+                'user': '',
+                'password': '',
+                'max_size': '',
+                'min_size': '',
+                'thread_count_limit': '',
+                'thread_count_type': '',
+                'thread_count_min': '',
+                'thread_count_max': '',
+                'scan_proc_owner': 'no',
+                'max_restarts': '',
+                'qos_process_state': 'no',
+                'qos_process_cpu': 'no',
+                'qos_process_memory': 'no',
+                'qos_process_count': 'no',
+                'qos_process_threads': 'no',
+                'window': {
+                    'active': 'no',
+                    'name': '',
+                    'class': '',
+                    'expect': '',
+                    'on_error': ''
+                }
+            } } }"
+  with_items: "{{ nimbus_local_services|selectattr('cmdline_re', 'defined')|list }}"
+  notify:
+    - wait for cluster probe to pick up new cdm/process cfg
+    - restart nimbus
+
+- meta: flush_handlers
+
+- name: Configure the Cluster probe - basic settings
+  nimbus_config:
+    path: "{{ nimbus_dir }}/probes/application/cluster/cluster.cfg"
+    update: {'cluster': {'name': '{{ cluster.name }}', 'plugin': 'redhat',
+            'alarms': {'use_cluster_name': 'no', 'node': {'subsystem': '1.1.16.1', 'severity': '3',
+            'clear': "Cluster node '$name' is $state_text.", 'sev_up': '0', 'sev_other': '3',
+            'active': 'yes', 'message': "Cluster node '$name' is $state_text."}, 'failover': {
+            'active': 'yes', 'subsystem': '1.1.16.2',
+            'message': "Resource group '$name' has moved to '$node'", 'severity': '3',
+            'clear': "Resource group '$name' has moved to '$node'"}, 'group': {
+            'subsystem': '1.1.16.2', 'severity': '3',
+            'clear': "Resource group '$name' is $state_text.", 'sev_up': '0', 'sev_other': '3',
+            'active': 'yes', 'message': "Resource group '$name' is $state_text."} },
+            'qos': {'qos_nodestate': '1', 'qos_groupstate': '1'} } }
+  notify: restart nimbus
+
+- name: Configure the Cluster probe - add cluster nodes
+  nimbus_config:
+    path: "{{ nimbus_dir }}/probes/application/cluster/cluster.cfg"
+    update: "{'cluster': {'nodes': {'{{ item.name }}': { 'name': '{{ item.name }}', 'ip': '{{ item.ip }}',
+            'node_interval': '60', 'group_interval': '10'} } } }"
+  with_items: "{{ cluster.members }}"
+  notify: restart nimbus
+
+- name: If clustat node name of the local node does not match short hostname or fqdn, configure it manually
+  nimbus_config:
+    path: "{{ nimbus_dir }}/probes/application/cluster/cluster.cfg"
+    update: {'setup': { 'node': '{{ cluster.local_node }}' } }
+  when: cluster.local_node != ansible_hostname and cluster.local_node != ansible_nodename
+  notify: restart nimbus
+
+- meta: flush_handlers
+
+- name: Configure the Cluster probe - add services, active node only
+  nimbus_config:
+    path: "{{ nimbus_dir }}/probes/application/cluster/cluster.cfg"
+    update: "{'groups': {'{{ item.name }}': {
+               'name': '{{ item.name }}',
+               'allow_partial_online': '0',
+                {% for fs in item.fs %}'{{ loop.index }}': {
+                    'profile': '/disk/alarm/fixed/{{ fs|replace('/', '#') }}',
+                    'probe': 'cdm',
+                    'type': 'profile',
+                    'description': 'File system {{ fs }}'
+                }{% if not loop.last or 'cmdline_re' in item %},{% endif %}{% endfor %}
+               {% if 'cmdline_re' in item %}'{{ (item.fs|length)+1 }}': {
+                   'profile': '/watchers/{{ item.name }}',
+                   'probe': 'processes',
+                   'type': 'profile', 'description': 'Processes Profile {{ item.name }}'
+               }{% endif %}
+            } } }"
+  with_items: "{{ nimbus_local_services }}"
+  notify: restart nimbus
+
+- meta: flush_handlers
+
+- name: Fail if there was an error initializing the cluster probe
+  shell: >-
+    for i in {1..300}; do
+      log=`tac {{ nimbus_dir }}/probes/application/cluster/cluster.log | awk 'BEGIN{f=1} /#################/{f=0} {if(f) print}'`;
+      if echo $log | grep -q 'Initialize Cluster OK!'; then
+        exit 0;
+      fi;
+      if echo $log | grep -q 'Initialize Cluster failed'; then
+        echo "Cluster probe failed to initialize correctly!";
+        exit 1;
+      fi;
+      sleep 1;
+    done; echo "Cluster probe has not initialized within 5 minutes!"; exit 1
+  changed_when: False
+
+# This is not a reliable check, I've just seen this error in the log of perfectly working Nimbus robot
+#- name: Fail when nimbus authentication error occurs
+#  shell: "! grep -q 'nimVerifyLogin request verify_login failed .* (permission denied)' {{ nimbus_dir }}/probes/application/cluster/cluster.log"
+#  check_mode: False
+#  changed_when: False

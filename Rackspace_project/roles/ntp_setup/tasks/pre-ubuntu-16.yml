@@ -1,0 +1,7 @@
+---
+# Package Configuration
+- name: Remove conflicting NTP package (Ubuntu 16)
+  package:
+    name: ntp
+    state: absent
+...

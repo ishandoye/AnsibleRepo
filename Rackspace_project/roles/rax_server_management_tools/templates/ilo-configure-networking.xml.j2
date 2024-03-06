@@ -1,0 +1,11 @@
+<ribcl version="2.0">
+    <login user_login="root" password="not_important">
+        <rib_info mode="write">
+            <mod_network_settings>
+                <ip_address value = "{{ obm_ip }}"/>
+                <subnet_mask value  = "{{ obm_nm }}"/>
+                <gateway_ip_address value = "{{ obm_gw }}"/>
+            </mod_network_settings>
+        </rib_info>
+    </login>
+</ribcl>

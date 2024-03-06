@@ -1,0 +1,21 @@
+---
+
+reset_obm_root_pw: false
+configure_obm_networking: false
+configure_repo: false
+install_vendor_tools: false
+
+hp_install_pkgs:
+  - hponcfg
+  - ssacli
+  - hp-health
+  - hp-snmp-agents
+hp_services_to_enable:
+  - hp-health
+  - hp-snmp-agents
+
+dell_install_pkgs:
+  - srvadmin-all
+dell_services_to_enable:
+  - dataeng
+  - dsm_om_connsvc

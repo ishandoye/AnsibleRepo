@@ -1,0 +1,7 @@
+---
+exclude_packages: kernel* kmod-oracleasm* glibc* gcc* binutils*
+oracle_fs_exclusions:
+  - /u01/app
+  - /dev/shm
+sophos_install_dir: "/opt/sophos-av"
+sophos_bin_dir: "{{ sophos_install_dir }}/bin"

@@ -1,0 +1,66 @@
+---
+# Tasks for Debian/Ubuntu based OSes
+- name: Get current apt repositories
+  ansible.builtin.command:
+    cmd: apt-cache policy
+  register: apt_repos
+  changed_when: false
+
+- name: Ensure apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Download keys for missing repos
+  ansible.builtin.get_url:
+    url: "{{ repo.key_url }}"
+    dest: /etc/apt/keyrings/{{ repo.key_file }}
+    force: true
+    owner: root
+    group: root
+    mode: '0644'
+  when: apt_repos is not search(repo.filter_re)
+  loop: "{{ deb_repos }}"
+  loop_control:
+    loop_var: repo
+    label: "{{ repo.name }}"
+
+- name: Configure missing repos
+  ansible.builtin.apt_repository:
+    filename: "{{ repo.name }}"
+    mode: '0644'
+    state: present
+    install_python_apt: true
+    update_cache: true
+    repo: >
+      deb [arch=amd64 signed-by=/etc/apt/keyrings/{{ repo.key_file }}]
+      {{ repo.url }} {{ repo.section }}
+  when: apt_repos is not search(repo.filter_re)
+  loop: "{{ deb_repos }}"
+  loop_control:
+    loop_var: repo
+    label: "{{ repo.name }}"
+
+- name: Pin holland to come from the OBS repo
+  ansible.builtin.copy:
+    content: |
+      Package: holland
+      Pin: release l=home:holland-backup
+      Pin-Priority: 900
+    dest: /etc/apt/preferences.d/99-holland
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Set packages to uninstall on Ubuntu 18.04 & 20.04
+  ansible.builtin.set_fact:
+    uninstall_packages: >-
+      {{
+        uninstall_packages + packages.keys() | select('match', 'holland') | list
+      }}
+  when:
+    - ansible_distribution_release in ['bionic', 'focal']
+    - not 'rs-holland-cohesity' in packages

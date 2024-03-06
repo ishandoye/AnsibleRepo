@@ -1,0 +1,9 @@
+---
+
+nimbus_dir: "/opt/nimsoft"
+
+nimbus_local_services: "{{ cluster.services|selectattr('owner', 'equalto', cluster.local_node)|list }}"
+
+# Set to the name of the hub of the "first node" in the cluster
+nimbus_first_node_facts: "{{ hostvars|dictsort|map(attribute=1)|selectattr('cluster', 'defined')|selectattr('cluster.local_node', 'equalto', cluster.first_node)|list }}"
+nimbus_hub_first_node: "{{ (nimbus_first_node_facts|first).nimbus_robot.config.controller.hub }}"

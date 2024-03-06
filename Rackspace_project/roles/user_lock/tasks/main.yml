@@ -1,0 +1,31 @@
+# Only action local users, not remote, for example AD
+- name: Check if user exists locally
+  command: grep '^{{ username }}:' /etc/passwd
+  register: userexists
+  failed_when: userexists.rc > 1
+  changed_when: False
+
+- name: Get info from the shadow file
+  getent:
+     database: shadow
+     key: "{{ username }}"
+  when: userexists.rc == 0
+
+- name: Lock user
+  command: /usr/sbin/usermod --lock {{ username }}
+  when: userexists.rc == 0 and not getent_shadow[username][0].startswith('!')
+
+- name: Set GECOS field with ticket number
+  user:
+    name: '{{ username }}'
+    comment: 'Locked under {{ ticket }}'
+  when: userexists.rc == 0
+
+# Expires is set as an epoch, which becomes days in the shadow file -
+# per man 5 shadow the minimum value for this should be 1 day, i.e.
+# 86400 seconds
+- name: Expire account
+  user:
+    name: '{{ username }}'
+    expires: 86400
+  when: userexists.rc == 0 and getent_shadow[username][6] != "1"

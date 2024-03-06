@@ -1,0 +1,15 @@
+---
+
+- name: Import hp gpg keys
+  rpm_key:
+    state: present
+    key: "{{ item }}"
+  with_items: "{{ hp_gpgkey_urls }}"
+
+- name: Configure hp-spp yum repo
+  template:
+    src: hp-spp.repo.j2
+    dest: /etc/yum.repos.d/hp-spp-{{ hp_server_gen }}.repo
+    owner: root
+    group: root
+    mode: 0644

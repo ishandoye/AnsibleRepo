@@ -1,0 +1,136 @@
+---
+- name: Verify SSSD config
+  hosts: all
+  gather_facts: true
+  gather_subset:
+    - min
+  become: true
+  tasks:
+    - name: Setup vars
+      include_vars:
+        file: "{{ item }}.yml"
+      loop:
+        - defaults
+        - main
+        - "{{ type|lower }}"
+
+    - name: Check username(s) can be resolved
+      command: id {{ item.acct }}
+      register: resolve_user
+      failed_when: resolve_user.rc != item.resolvable|ternary(0, 1)
+      changed_when: false
+      until: resolve_user.rc|int == 0
+      retries: 5
+      delay: 10
+      loop:
+        - acct: "{{ JOINACCT }}"
+          resolvable: "{{ (type != 'customer') }}"
+        - acct: "{{ int_cust_username|default(omit, true) }}"
+          resolvable: "{{ (type != 'customer') }}"
+        - acct: "{{ test_username|default(omit, true) }}"
+          resolvable: true
+      loop_control:
+        label: "{{ item.acct }}"
+
+    - name: Block for handling group name resolution failure
+      block:
+        - name: Check {{ rs_customer }}-rax group can be resolved
+          command: getent group {{ rs_customer }}-rax
+          changed_when: false
+      rescue:
+        - name: Restart sssd service
+          service:
+            name: sssd
+            state: restarted
+
+        - name: Check {{ rs_customer }}-rax group can be resolved
+          command: getent group {{ rs_customer }}-rax
+          changed_when: false
+          register: group_chk
+          until: group_chk.rc|int == 0
+          retries: 2
+          delay: 5
+
+    - name: Check no user kerberos tickets are present
+      command: klist
+      register: klist_user
+      changed_when: false
+      failed_when: klist_user.rc|int != 1
+
+    - name: Get machine kerberos tickets
+      command: klist -k
+      register: klist_machine
+      changed_when: false
+
+    - name: Check there are 5 unique machine kerberos tickets
+      assert:
+        that:
+          - klist_machine.stdout_lines[3:]|map('split')|map('last')|unique|
+              length == 5
+        quiet: true
+
+    - name: Test the domain join
+      command: adcli testjoin --domain={{ ad_domain|lower }}
+      changed_when: false
+      when:
+        - not (ansible_os_family == "Debian" and
+               ansible_distribution_major_version|int < 20)
+        - not (ansible_os_family == "RedHat" and
+               ansible_distribution_major_version|int < 7)
+
+    - name: Login tests
+      include_tasks: verify_login.yml
+      vars:
+        chk_username: "{{ item.user }}"
+        chk_password: "{{ item.pwd }}"
+        chk_allowed: "{{ item.allowed }}"
+        chk_description: "{{ item.desc }}"
+      when: item.user|default("")|length > 0
+      loop:
+        - user: "{{ JOINACCT }}"
+          pwd: "{{ JOINPWD }}"
+          desc: Intensive user
+          allowed: false
+        - user: "{{ test_username|default('', true) }}"
+          pwd: "{{ test_password|default(omit, true) }}"
+          desc: Domain test user
+          allowed: true
+        - user: "{{ int_cust_username|default('', true) }}"
+          pwd: "{{ int_cust_password|default(omit, true) }}"
+          desc: Intensive.cust user
+          allowed: "{{ (type != 'customer') }}"
+      loop_control:
+        label: "{{ item.desc }}"
+
+    - name: resolv.conf tests for customer AD
+      block:
+        - name: Read /etc/resolv.conf.molecule
+          slurp:
+            src: /etc/resolv.conf.molecule
+          register: resolv_conf_molecule
+
+        - name: Decode file contents
+          set_fact:
+            resolv_conf: "{{ resolv_conf_molecule['content']|b64decode }}"
+
+        - name: Check that nameservers are present
+          assert:
+            that:
+              - resolv_conf is search('^nameserver ' + item, multiline=true)
+          loop: "{{ customer_dns_servers.split(',') }}"
+
+        - name: Check that search option is present
+          assert:
+            that:
+              - resolv_conf is search('^search ' + ad_domain|lower, multiline=true)
+
+        - name: Check if domain option is present
+          assert:
+            that:
+              - ((ansible_os_family == 'RedHat' and ansible_distribution_major_version|int < 8) or
+                 (ansible_os_family == 'Debian' and ansible_distribution_major_version|int < 20)
+                )|ternary(
+                  resolv_conf is search('^domain ' + ad_domain|lower, multiline=true),
+                  resolv_conf is not search('^domain ', multiline=true)
+                )
+      when: type|lower == 'customer'

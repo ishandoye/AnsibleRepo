@@ -1,0 +1,4 @@
+SERVERID,HOSTNAME,CLUSTER_TYPE,CLUSTER_MEMBERS,STORAGE_PRESENT,MULTIPATHD_RUNNING,MULTIPATH_VERSION,POWERPATH_RUNNING,POWERPATH_VERSION,BAD_PP_POLICY,DEAD_SUBPATHS,SUBPATHS_WITH_ERRORS,DIRECTLY_MOUNTED_SUBPATHS,SUBPATHS_USED_AS_LVM_PVS,USED_PSEUDODEVICES,UNUSED_PSEUDODEVICES
+{% for host in play_hosts -%}
+"{{ hostvars[host].rs_server|default(host) }}","{{ ['hostname', 'cluster_type', 'cluster_nodes', 'storage_present', 'multipathd_running', 'multipath_version', 'powerpath_running', 'powerpath_version', 'bad_pp_policy', 'dead_paths', 'paths_with_errors', 'subpaths_directly_mounted', 'subpaths_used_as_lvm_pvs','used_pseudodevs', 'unused_pseudodevs'] | map('extract', hostvars[host]['results_output']) | join('","') }}"
+{% endfor -%}

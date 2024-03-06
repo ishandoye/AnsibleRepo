@@ -1,0 +1,90 @@
+---
+- name: Fail if OS is not supported
+  ansible.builtin.fail:
+    msg: >
+      {{ ansible_distribution }} {{ ansible_distribution_version }}
+      is not supported
+  when: ansible_distribution_major_version | int not in
+          supported_distros[ansible_distribution | lower] | default([])
+
+- name: Fail if `role_action` is not valid
+  ansible.builtin.fail:
+    msg: >-
+      role_action '{{ role_action }}' is not valid - must be one of
+      [{{ allowed_actions | join(',') }}]
+  when: role_action not in allowed_actions
+
+- name: Get installed packages
+  ansible.builtin.package_facts:
+
+- name: Fail if cohesity package is installed
+  ansible.builtin.fail:
+    msg: |-
+      cohesity-agent package is already installed
+      This is not compatible with the scripted installer version, and must be removed
+  when: >-
+    "cohesity-agent" in ansible_facts.packages
+
+- name: Check if cohesityagent is installed
+  ansible.builtin.include_tasks:
+    file: get_version.yml
+  vars:
+    version_file: "{{ installed_version_path }}"
+
+- name: Record installed version
+  ansible.builtin.set_fact:
+    installed_version: >-
+      {{
+        cohesity_version_info.Version | default("Version info missing")
+      }}
+  when: cohesity_version_info is not none
+
+- name: Report if cohesity agent is already in desired state
+  ansible.builtin.debug:
+    msg: |-
+      cohesity agent is already {{ role_action }}ed
+      {{
+        (cohesity_version_info is none) | ternary(
+          "",
+          "Installed version: {}".format(installed_version | default("unknown"))
+        )
+      }}
+  when: (cohesity_version_info is none and role_action == "uninstall") or
+    (cohesity_version_info is not none and
+      (role_action == "install" and not force_reinstall))
+
+- name: Stop now if device is already in the desired state
+  ansible.builtin.meta: end_host
+  when: (cohesity_version_info is none and role_action == "uninstall") or
+    (cohesity_version_info is not none and
+      (role_action=="install" and not force_reinstall))
+
+# Ensure we can get the installer before
+# carrying out any actions on the target(s)
+- name: Get linux installer
+  ansible.builtin.include_tasks:
+    file: get_installer.yml
+  when:
+    - role_action == "install"
+    - installed_version is none or force_reinstall
+
+- name: Run uninstall
+  ansible.builtin.include_tasks:
+    file: uninstall.yml
+  when:
+    - installed_version is not none
+    - role_action == "uninstall" or force_reinstall
+
+- name: Run install
+  ansible.builtin.include_tasks:
+    file: install.yml
+  when:
+    - role_action == "install"
+    - installed_version is none
+
+- name: Print install info
+  ansible.builtin.debug:
+    msg: Installed cohesity agent version is {{ cohesity_version_info.Version }}
+  when:
+    - role_action == "install"
+    - cohesity_version_info is not none

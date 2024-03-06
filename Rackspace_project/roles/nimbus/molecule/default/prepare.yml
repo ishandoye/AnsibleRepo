@@ -1,0 +1,17 @@
+---
+- name: Prepare Dedicated Servers
+  hosts: all
+  become: true
+  tasks:
+    - name: Include dummy Rackspace info
+      include_role:
+        name: dummy_raxfacts
+
+    - name: Create rack user
+      include_role:
+        name: rs_user
+
+    - name: Create Rackspace cookies
+      include_role:
+        name: rscookies_create
+...

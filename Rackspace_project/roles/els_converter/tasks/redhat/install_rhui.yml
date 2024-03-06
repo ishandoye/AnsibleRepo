@@ -1,0 +1,86 @@
+# Partly adapted from https://github.rackspace.com/APE/PlaybookLibrary/blob/master/Linux/roles/adc_main/tasks/patching_RedHat_RHUI.yaml
+#
+
+- name: "Check if main RPMs are already installed"
+  shell:
+    cmd: "rpm -q --queryformat '%{NVRA}\n' -a | egrep '*rackspace-rhui-client*'"
+    # Use "rpm" because "package" does not support "list" for checking installed packages.
+    warn: false
+  ignore_errors: true
+  changed_when: false
+  failed_when: false
+  register: check_RHUI_RPMs_installed
+
+- name: "Uninstall old RPMS"
+  when: check_RHUI_RPMs_installed.rc == 0 and 'stdout_lines' in check_RHUI_RPMs_installed
+  package:
+    name: "{{ item }}"
+    state: "absent"
+    disable_gpg_check: true
+  loop: "{{ check_RHUI_RPMs_installed.stdout_lines|flatten(levels=1) }}"
+
+- block:
+    - name: "Install RPM"
+      yum:
+        name: "{{ ansible_env.HOME }}/{{ item.obfuscated_name }}.rpm"
+        state: present
+        disable_gpg_check: true
+      loop: "{{ rhui_rpm|flatten(levels=1) }}"
+
+    - name: "Remove uploaded RPM from device"
+      file:
+        path: "{{ ansible_env.HOME }}/{{ item.obfuscated_name }}.rpm"
+        state: "absent"
+      loop: "{{ rhui_rpm|flatten(levels=1) }}"
+
+  rescue:
+    - name: Report RHUI Install Error
+      delegate_to: localhost
+      become: false
+      uri:
+        url: "https://stepladder.rax.io/api/rigatoni/v1/reports/GTSENG-205/{{ device_id }}"
+        method: POST
+        return_content: true
+        headers:
+          accept: application/json
+          X-Auth-Token: "{{ rackertoken }}"
+        body: "{\"result_code\":\"18\"}"
+        body_format: json
+      when: rigatoni
+
+    - name: Fail on RHUI Install
+      fail:
+        msg: "There was an error installing RHUI"
+
+- block:
+    - name: "Install RAX Repository"
+      package:
+        name: "{{ rax_url }}"
+        state: "present"
+        disable_gpg_check: true
+      when: ansible_distribution_major_version == '7'
+
+  rescue:
+    - name: Report SSH Failure to Rigatoni
+      delegate_to: localhost
+      become: false
+      uri:
+        url: "https://stepladder.rax.io/api/rigatoni/v1/reports/GTSENG-205/{{ device_id }}"
+        method: POST
+        return_content: true
+        headers:
+          accept: application/json
+          X-Auth-Token: "{{ rackertoken }}"
+        body: "{\"result_code\":\"19\"}"
+        body_format: json
+      when: rigatoni
+
+    - name: Fail on RAX Install
+      fail:
+        msg: "There was an error installing the Rax Repo"
+
+- name: "Remove RHUI package file locally"
+  file:
+    state: absent
+    path: "{{ local_temp_dir }}/{{ item.file_name }}"
+  loop: "{{ rhui_rpm|flatten(levels=1) }}"

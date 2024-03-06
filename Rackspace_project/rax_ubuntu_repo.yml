@@ -1,0 +1,22 @@
+---
+- name: Rackspace ubuntu repo registration (cache)
+  hosts: all
+  become: "yes"
+  gather_facts: "yes"
+  pre_tasks:
+  - name: Changes when using ACE
+    block:
+    - name: Get CORE data when using ACE
+      include_tasks: ace.yml
+    - name: Create token cache from variable rhn_token
+      copy:
+        content: "{{ rhn_token }}"
+        dest: /tmp/rhnapi_token
+    when: config_id is defined
+    delegate_to: localhost
+  tasks:
+  - include_role:
+      name: rax_ubuntu_repo
+    vars:
+       authenticate: "no"
+...

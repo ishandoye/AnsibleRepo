@@ -1,0 +1,49 @@
+---
+- name: Check for local uninstall script
+  ansible.builtin.stat:
+    path: "{{ uninstaller_path }}"
+  register: uninstaller_present
+  become: true
+
+- name: Read mcs.config file to get agent ID
+  ansible.builtin.slurp:
+    path: "{{ mcs_config_path }}"
+  register: mcs_config
+  ignore_errors: true
+  become: true
+
+- name: Read agent ID from mcs config
+  ansible.builtin.set_fact:
+    agent_id: >-
+      {{
+        mcs_config.content | b64decode |
+          regex_search("^MCSID=.*$", multiline=True) |
+          regex_replace("^MCSID=", "")
+      }}
+  when: mcs_config is not failed
+
+- name: Fail if uninstall script is missing
+  ansible.builtin.fail:
+    msg: |
+      Uninstaller {{ uninstaller_path }} is missing.
+      Try manually forcing a reinstall before uninstalling again
+  when: not uninstaller_present.stat.exists
+
+- name: Run uninstall script
+  ansible.builtin.command:
+    cmd: "{{ uninstaller_path }} --force"
+    removes: "{{ sophos_path }}"
+  become: true
+  register: uninstaller
+
+- name: Print message that uninstall happened
+  ansible.builtin.debug:  # noqa: no-handler
+    msg: Sophos Central uninstalled
+  when: uninstaller is changed
+
+- name: Print agent ID to delete
+  ansible.builtin.debug:
+    msg: >-
+      Now delete agent with ID {{ agent_id | default('UNKNOWN') }} from
+      Sophos Central
+  when: mcs_config is not failed

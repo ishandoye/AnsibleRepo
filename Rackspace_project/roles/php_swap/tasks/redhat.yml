@@ -1,0 +1,40 @@
+---
+- name: RedHat family - load any specific version variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+        - "{{ ansible_distribution|lower }}-{{ ansible_distribution_version }}.yml"
+        - "{{ ansible_distribution|lower }}-{{ ansible_distribution_release }}.yml"
+        - "{{ ansible_distribution|lower }}-{{ ansible_distribution_major_version }}.yml"
+        - "{{ ansible_distribution|lower }}.yml"
+        - "{{ ansible_os_family|lower }}.yml"
+        - OS_defaults.yml
+      paths:
+        - ../vars
+
+- name: Load PHP package & module variables
+  include_vars: "{{ ansible_os_family|lower }}_{{ ansible_distribution_major_version }}_php_modules_lists.yml"
+
+- name: Running universal prerequisite checks
+  include: prerequisite.yml
+
+- name: Looking for the PHP package name
+  include: php_package_name.yml
+
+- name: Currently installed PHP package name
+  debug:
+    msg: "{{ installed_php }}"
+
+- name: Running distro specific prerequisite checks
+  include: "{{ ansible_os_family|lower }}_{{ ansible_distribution_major_version }}_prereqs.yml"
+
+- name: Running pre-processing of the PHP modules
+  include: pre_php_replace.yml
+
+- name: Proceed with the PHP package swap (skipped in check mode)
+  include: "{{ ansible_os_family|lower }}_{{ ansible_distribution_major_version }}_replace.yml"
+  when: not ansible_check_mode
+
+- name: Starting post processing
+  include: post_php_replace.yml
+  when: not ansible_check_mode

@@ -1,0 +1,21 @@
+---
+- name: Verify upgrade completed successfully
+  hosts: all
+  gather_facts: false
+  gather_subset:
+    - min
+  tasks:
+    - name: Collect package facts
+      package_facts:
+        manager: auto
+
+    - name: Get PHP Raxfacts
+      raxfacts:
+        facts:
+          - php
+      no_log: true
+
+    - name: Verify PHP packages are installed and correct version
+      assert:
+        that: packages["php"] and "{{ php.php_version_major }}" == "8.0"
+...

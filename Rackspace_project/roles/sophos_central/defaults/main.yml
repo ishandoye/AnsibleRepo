@@ -1,0 +1,19 @@
+---
+default_stepladder_host: stepladder.rax.io
+stepladder_host: "{{ default_stepladder_host }}"
+stepladder_api_path: /api/sophos_central/get/account_data
+linux_installer: >-
+  {{
+    linux_installer_map[inventory_hostname_short] | default("", true)
+  }}
+download_dir: /root
+tmpdir:
+  path: /opt
+  prefix: sophos.
+rackertoken: "{{ lookup('ansible.builtin.env', 'RACKERTOKEN') }}"
+role_action: "install"
+force_reinstall: false
+group: >-
+  {{
+    group_map[inventory_hostname_short] | default("", true)
+  }}

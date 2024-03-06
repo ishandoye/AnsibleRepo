@@ -1,0 +1,124 @@
+---
+
+- name: "Get SKU information for device {{ rs_server }}"
+  core_sku_facts:
+    device_id: "{{ rs_server }}"
+  delegate_to: localhost
+  become: false
+
+- fail:
+    msg: "[FAIL] This is not a CORE device"
+  when: core_sku_facts is none
+
+- debug:
+    msg: "Plesk Upgrade Check for {{ rs_server }}"
+
+- debug:
+    msg: "Running basic checks..."
+
+- name: "Check if device {{ rs_server }} is running a supported OS"
+  fail:
+    msg: "Only Red Hat OS family is supported on 6 and 7 major version"
+  when: not (ansible_os_family == "RedHat" and (ansible_distribution_major_version in ["6","7"]))
+
+- name: Check installed packages
+  package_facts:
+    manager: auto
+
+- fail:
+    msg: "[FAIL] Plesk is not installed on this device"
+  when: "packages['sw-cp-server'] is not defined"
+
+- name: Get the current Plesk version
+  slurp:
+    src: /usr/local/psa/version
+  register: plesk_version
+
+- set_fact:
+    psa_version: "{{ plesk_version['content'] | b64decode }}"
+
+- fail:
+    msg: "[FAIL] Plesk is already version {{upgrade_to}}!"
+  when: "upgrade_to in psa_version"
+
+- debug:
+    msg: "[INFO] Device number is {{ rs_server }}"
+
+- set_fact:
+    current_sku: "{{ ansible_facts.core_sku_facts.Plesk.sku_number }}"
+  when: ansible_facts.core_sku_facts.Plesk is defined
+
+- debug:
+    msg: "[PASS] Device {{ rs_server }} is SKU'd for Plesk"
+  when: (current_sku is defined) and (current_sku in plesk_skus)
+
+- debug:
+    msg: "[FAIL] Device {{ rs_server }} is not SKU'd for Plesk!"
+  when: (current_sku is not defined) or (current_sku not in plesk_skus)
+
+- debug:
+    msg: "[INFO] Plesk SKU is: {{ ansible_facts.core_sku_facts.Plesk.desc }}"
+  when: current_sku is defined
+
+- fail:
+    msg: "[FAIL] Plesk version {{ psa_version | regex_search('^([^.]*)') }} is not supported!"
+  when: "psa_version | regex_search('^([^.]*)') in unsupported_plesk_versions"
+
+- debug:
+    msg: "[INFO] This server is running Plesk {{ psa_version | replace('\n', '') }}"
+  when: "psa_version | regex_search('^([^.]*)') not in unsupported_plesk_versions"
+
+- name: Obtain Plesk license key from server
+  shell: /usr/sbin/plesk bin keyinfo --list | grep plesk_key_id | cut -d ' ' -f2
+  register: plesk_key
+
+- debug:
+    msg: "[INFO] Plesk license key: {{ plesk_key.stdout }}"
+
+- name: Check if /root/.my.cnf exists
+  stat:
+    path: /root/.my.cnf
+  register: my_cnf_exists
+
+- debug:
+    msg: "{% if my_cnf_exists.stat.exists == True %}[INFO] /root/.my.cnf file exists{% else %}[INFO] /root/.my.cnf file does not exist{% endif %}"
+
+- name: Create /home/rack/.plesk_upgrade_checks directory
+  file:
+    path: /home/rack/.plesk_upgrade_checks
+    state: directory
+
+- name: Check MBU history for the last 7 days
+  uri:
+    url: "https://mbuapi.storage.rackspace.com/v2/accounts/{{ rs_customer }}/devices/{{ rs_server }}/jobs/completed?minEndTimeUnix={{ (ansible_date_time['epoch']|int)-(86400*7) }}"
+    method: GET
+    body_format: json
+    headers:
+      Content-Type: "application/json"
+      X-Auth-Token: "{{ lookup('rax_secret', 'rackertoken') }}"
+    validate_certs: false
+  register: mbu_data
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- set_fact:
+    mbu_history: "{{ lookup('template', 'templates/mbu.j2') }}"
+
+- name: Store MBU check contents in /home/rack/.plesk_upgrade_checks
+  copy:
+    content: "{{ mbu_history }}"
+    dest: /home/rack/.plesk_upgrade_checks/check_backup_{{ ansible_date_time.date }}_{{ ansible_date_time.time }}.log
+
+- debug:
+    msg: "<br>Managed backup check..."
+
+- debug:
+    msg: "<pre>{% if mbu_history == '\n' %}No MBU history found for device {{ rs_server }}{% else %}{{ mbu_history }}{% endif %}</pre>"
+
+- debug:
+    msg: "[FAIL] No MBU history found for device {{ rs_server }}"
+  when: mbu_history == '\n'
+
+- debug: "{% if 'Failed' in mbu_history %}[FAIL] Failed backups detected. Please check{% else %}[PASS] Previous MBU backups were successful{% endif %}"
+  when: mbu_history != '\n'

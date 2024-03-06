@@ -1,0 +1,39 @@
+---
+- name: Try to ensure the same packages pre-swap are installed post-swap
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  failed_when: false
+  loop: "{{ php_packages }}"
+
+- name: Re-gather PHP Raxfacts
+  raxfacts:
+    facts:
+      - php
+  no_log: true
+
+- name: Ignore missing PHP modules that are deprecated
+  loop: "{{ deprecated_php_modules|dict2items }}"
+  set_fact:
+    pre_installed_modules: "{{ pre_installed_modules | difference([item.key]) }}"
+  when: php.php_version_major is version(item.value, ">=")
+
+- name: Starting PHP-FPM
+  service:
+    name: php-fpm
+    state: started
+  when: php.fpm_running
+
+- name: Fail when post-swap modules differ from pre-swap modules
+  fail:
+    msg: >
+      The PHP modules present prior to the swap differ from the modules post-swap. You may need to manually investigate.
+      Modules present pre-swap that are not present post-swap: {{ pre_installed_modules | difference(php.php_enabled_modules) | join(',') }}
+  when: pre_installed_modules | difference(php.php_enabled_modules) | length
+
+- name: Log success message
+  debug:
+    msg: >
+      Execution finished and {{ installed_php }} has been swapped with {{ replace_with }}{% if appstream_version | default(none) %} and appstream version {{ appstream_version }} {% endif %}.
+      All the modules/edge-cases have been processed successfully. Check the entire execution report for exceptions and more details.
+  when: not (pre_installed_modules | difference(php.php_enabled_modules) | length)

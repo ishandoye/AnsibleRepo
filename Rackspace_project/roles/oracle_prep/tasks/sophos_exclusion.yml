@@ -1,0 +1,21 @@
+---
+- name: Set on-access excludes
+  shell: >
+    {{ sophos_bin_dir }}/savconfig add ExcludeFilePaths {{ item }}
+  register: addexclude
+  with_items: "{{ oracle_fs_exclusions }}"
+  failed_when: addexclude.rc != 0
+
+- name: Get on-access excludes
+  shell: >
+    {{ sophos_bin_dir }}/savconfig get ExcludeFilePaths
+  register: sophos_excludes_onaccess
+
+- name: Fail when exclusions are missing
+  fail:
+    msg: "Exclusion missing: {{ item }}"
+  failed_when: >
+    item not in sophos_excludes_onaccess.stdout_lines
+  with_items: "{{ oracle_fs_exclusions }}"
+
+...

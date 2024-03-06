@@ -1,0 +1,8 @@
+---
+- hosts: all
+  become: true
+
+  tasks:
+  - include_role:
+      name: mysql_upgrade
+...

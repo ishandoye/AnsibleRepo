@@ -1,0 +1,39 @@
+---
+- name: Determine if DRAC supports 'config' command
+  command: racadm help config
+  environment:
+    PATH: /bin:/sbin:/usr/sbin:/opt/dell/srvadmin/bin:/opt/dell/srvadmin/sbin
+  failed_when: false
+  changed_when: false
+  register: racadm_config_support
+
+- name: Set DRAC config command type
+  set_fact:
+    racadm_type: >-
+      {{ (racadm_config_support.rc|int == 0)|ternary('legacy', 'modern') }}
+
+- name: Find root user account on DRAC
+  shell: |-
+    res=-1
+    for i in 2 1 {3..15}
+    do
+      racadm {{ racadm[racadm_type]['get_user'].format('${i}') }} \
+      | grep -q UserName=root && res=${i} && break
+    done
+    echo ${res}
+  environment:
+    PATH: /bin:/sbin:/usr/sbin:/opt/dell/srvadmin/bin:/opt/dell/srvadmin/sbin
+  register: racadm_uid
+  changed_when: false
+
+- name: Fail if we can't find the root user
+  fail:
+    msg: Could not find root user ID on DRAC
+  when: racadm_uid.stdout|int == -1
+
+- name: Reset drac password
+  command: >
+    racadm {{ racadm[racadm_type]['set_user_pwd'].format(
+      racadm_uid.stdout, obm_pass) }}
+  environment:
+    PATH: /bin:/sbin:/usr/sbin:/opt/dell/srvadmin/bin:/opt/dell/srvadmin/sbin

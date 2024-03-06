@@ -1,0 +1,30 @@
+---
+- name: run setup if needed
+  setup:
+  when: ( ansible_os_family is undefined )
+
+- name: Check for nimbus directories
+  include_tasks: check_nimbus_dirs.yml
+
+- name: Remove nimbus
+  include_tasks: remove.yml
+  when: >
+    nimbus_found_dirs is defined and
+      ( remove is defined or force is defined )
+
+- name: Install nimbus
+  include_tasks: install.yml
+  when: >
+    ( remove is undefined and nimbus_found_dirs is undefined )
+      or force is defined
+
+- name: Flush Handlers
+  meta: flush_handlers
+
+- name: Determine whether to verify install or remove operation
+  set_fact:
+    verify_task: "{{ 'remove' if remove is defined else 'install' }}"
+
+- name: "Verify Nimbus State: {{ verify_task }}"
+  include_tasks: verify_{{ verify_task }}.yml
+...

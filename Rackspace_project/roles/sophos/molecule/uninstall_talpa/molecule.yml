@@ -1,0 +1,46 @@
+---
+dependency:
+  name: galaxy
+  enabled: false
+
+driver:
+  name: docker
+
+lint: |
+  yamllint .
+
+platforms:
+  - name: molecule_sophos_c6
+    image: ${DOCKER_REPO:-docker.artifacts.rackspace.net}/centos:6
+    privileged: true
+    network_mode: ${DOCKER_NETWORK_MODE:-bridge}
+
+provisioner:
+  name: ansible
+  log: true
+  env:
+    ANSIBLE_LIBRARY: ../../../../library
+    ANSIBLE_MODULE_UTILS: ../../../../module_utils
+    ANSIBLE_ROLES_PATH: ../../../../roles
+  playbooks:
+    prepare: ../resources/prepare_uninstall.yml
+    converge: ../resources/converge_uninstall.yml
+    cleanup: ../resources/cleanup.yml
+    verify: ../resources/verify_uninstall.yml
+
+scenario:
+  test_sequence:
+    - syntax
+    - cleanup
+    - destroy
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - cleanup
+    - destroy
+
+verifier:
+  name: ansible
+...

@@ -1,0 +1,14 @@
+---
+# Vars for storage_check role
+
+required_facts:
+  storage:
+    args:
+  setup:
+    args:
+  cluster:
+    args:
+valid_policies:
+  - symmopt
+  - claropt
+...

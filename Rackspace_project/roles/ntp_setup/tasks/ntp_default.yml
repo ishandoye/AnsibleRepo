@@ -1,0 +1,12 @@
+---
+- name: Get NTP IP via getent module
+  become: no
+  delegate_to: localhost
+  getent:
+    database: ahostsv4
+    key: "{{ rs_time_server_fqdn }}"
+
+- name: Extract IP address
+  set_fact:
+    rs_time_server_ip: "{{ getent_ahostsv4.keys() | list | first() }}"
+...

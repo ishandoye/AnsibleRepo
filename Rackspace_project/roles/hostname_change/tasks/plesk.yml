@@ -1,0 +1,19 @@
+---
+- name: update hostname on plesk server using plesk cli
+  shell: /usr/local/psa/bin/server_pref -u -hostname {{ new_hostname }}
+  register: plesk_hostname_change
+
+- name: Check /etc/postfix/main.cf file exists
+  stat: path=/etc/postfix/main.cf
+  register: main_cf_file
+
+- name: Update myhostname variables on /etc/postfix/main.cf
+  lineinfile:
+     backrefs: yes
+     dest: /etc/postfix/main.cf
+     regexp: "^myhostname"
+     line: "myhostname={{ new_hostname }}"
+     backup: yes
+  when: main_cf_file.stat.exists == True
+  notify:
+      - Restart postfix

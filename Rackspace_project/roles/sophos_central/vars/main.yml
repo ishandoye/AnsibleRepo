@@ -1,0 +1,43 @@
+---
+supported_distros:
+  centos:
+    - 7
+  redhat:
+    - 7
+    - 8
+    - 9
+  almalinux:
+    - 8
+    - 9
+  rocky:
+    - 8
+    - 9
+  oraclelinux:
+    - 7
+    - 8
+    - 9
+  ubuntu:
+    - 18
+    - 20
+    - 22
+allowed_actions:
+  - install
+  - remove
+sophos_path: /opt/sophos-spl
+uninstaller_path: "{{ sophos_path }}/bin/uninstall.sh"
+mcs_config_path: "{{ sophos_path }}/base/etc/sophosspl/mcs.config"
+installer_flags:
+  # force: >-
+  #   {{ (force_reinstall | bool) | ternary('--force', '') }}
+  group: >-
+    {{
+      (group | default("", true) != "") |
+        ternary('--group="{}"'.format(group), '')
+    }}
+debug_info:
+  installer_flags: "{{ installer_flags }}"
+  force_reinstall: "{{ force_reinstall }}"
+  group: "{{ group }}"
+  role_action: "{{ role_action }}"
+  linux_installer: "{{ linux_installer }}"
+  linux_installer_map: "{{ linux_installer_map | default('UNDEFINED') }}"

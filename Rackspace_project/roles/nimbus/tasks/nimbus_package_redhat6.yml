@@ -1,0 +1,9 @@
+---
+# RHEL/CentOS 6 -> ManagedProbes | Intensiveprobes-RHEL6
+- name: Define nimbus package for Red Hat-based distros version 6
+  set_fact:
+    nimbus_package: "\
+      {{ rs_target_sla }}\
+      {{ 'Probes' if rs_target_sla == 'Managed' else 'probes-RHEL6' }}"
+  changed_when: "False"
+...

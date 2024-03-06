@@ -1,0 +1,17 @@
+---
+- name: Test php_swap
+  hosts: all
+  become: true
+  gather_facts: true
+  gather_subset:
+    - min
+  vars:
+    rs_platform: "None"
+  tasks:
+    - name: Upgrade to latest version of PHP
+      vars:
+        replace_with: "php"
+        appstream_version: "8.0"
+      include_role:
+        name: php_swap
+...

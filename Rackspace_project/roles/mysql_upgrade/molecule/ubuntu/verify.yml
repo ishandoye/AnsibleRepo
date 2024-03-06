@@ -1,0 +1,35 @@
+---
+- name: Verify upgrade completed successfully
+  hosts: all
+  gather_facts: false
+  gather_subset:
+    - min
+  tasks:
+    - name: Collect package facts
+      package_facts:
+        manager: auto
+
+    - name: Collect service facts
+      service_facts:
+
+    - name: Verify MySQL packages are installed
+      assert:
+        that: packages["mysql-community-server"] is defined or
+              packages["mariadb-server"] is defined or
+              packages["MariaDB-server"] is defined or
+              packages["percona-server-server"] is defined
+
+    - name: Verify MySQL services are running
+      assert:
+        that: (services["mariadb.service"] is defined and services["mariadb.service"].state == "running") or
+              (services["mysqld.service"] is defined and services["mysqld.service"].state == "running")
+
+    - name: Verify table integrity
+      command: mysqlcheck --check --silent --all-databases
+      changed_when: false
+      register: mysqlcheck
+
+    - name: Verify mysqlcheck completed successfully
+      assert:
+        that: not "error" in mysqlcheck.stdout
+...

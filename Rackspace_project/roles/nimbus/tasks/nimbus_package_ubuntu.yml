@@ -1,0 +1,8 @@
+---
+# Ubuntu -> Intensiveprobes-Ubuntu
+- name: Define nimbus package for Ubuntu
+  set_fact:
+    nimbus_package: "Intensiveprobes-Ubuntu"
+  changed_when: "False"
+
+...

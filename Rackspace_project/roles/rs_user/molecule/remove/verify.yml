@@ -1,0 +1,17 @@
+---
+- name: Verify rack user does not exist
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Check for rack user presence
+      command: getent passwd rack
+      register: test_command
+      changed_when: false
+      failed_when: test_command.rc == 0
+
+      # return code is 2 when user does not exist
+    - name: Verify results
+      assert:
+        that: test_command.rc == 2
+...

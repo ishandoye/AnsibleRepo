@@ -1,0 +1,101 @@
+    - name: assert whether disable_check value is valid or not
+      assert:
+        that:
+          - disable_check | lower == 'true' or disable_check | lower == 'false' or disable_check | lower == 'yes' or disable_check | lower == 'no'
+        msg: "Only yes/no/true/false are accepted values (case insensitive)"
+
+    - name: Convert input '{{ disable_check }}' for yes/no to boolean
+      set_fact:
+        disable_monitoring: "{{ disable_check | bool }}"
+
+    - name: Check if mount point {{ mount_point }} exists
+      stat:
+        path: "{{ mount_point }}"
+      register: mount_point_check
+
+    - name: Fail if mount point {{ mount_point }} does not exist
+      fail: msg="mount point {{ mount_point }} does not exist"
+      when: not mount_point_check.stat.exists
+
+    - name: Fail when a ticket number was not given
+      fail: msg="A ticket number was not passed through prompt or --extra-vars"
+      when: ticket == ""
+
+    - name: Check if {{ cdm_path1 }} exists
+      stat:
+        path: "{{ cdm_path1 }}"
+      register: cdm_path1_check
+
+    - name: Set cdm_path to {{ cdm_path1 }}
+      set_fact:
+        cdm_path: "{{ cdm_path1 }}"
+      when: cdm_path1_check.stat.exists
+
+    - name: Check if {{ cdm_path2 }} exists
+      stat:
+        path: "{{ cdm_path2 }}"
+      register: cdm_path2_check
+      when: cdm_path is undefined
+
+    - name: Set cdm_path to {{ cdm_path2 }}
+      set_fact:
+        cdm_path: "{{ cdm_path2 }}"
+      when: cdm_path is undefined and cdm_path2_check.stat.exists
+
+    - name: Fail if a value for cdm_path was not set
+      fail: msg="Couldn't find Nimbus cdm probe configuration directory"
+      when: cdm_path is undefined
+
+    - name: Make sure {{ cdm_file }} exists
+      file:
+        path: "{{ cdm_file }}"
+        state: file
+      register: cdm_file_check
+
+    - name: Fail if the {{ cdm_file }} does not exist
+      fail: msg="Fail if the {{ cdm_file }} does not exist"
+      when: cdm_file_check.state == "absent"
+
+    - name: Create workdir
+      file:
+        path: "{{ workdir }}"
+        state: directory
+
+    - name: Backup cdm.cfg
+      shell: cp -a {{ cdm_file }} {{ workdir }}/{{ cdm_filename }}.bck.{{ date_time }}
+
+    - name: Disabling check altogether - Parse cdm.cfg and save result in workdir
+      shell: sed {{ sed_disable_check_cmd }} {{ workdir }}/{{ cdm_filename }}.bck.{{ date_time }} > {{ workdir }}/{{ cdm_filename }}.new.{{ date_time }} warn=false
+      when: disable_monitoring
+
+    - name: Keeping mount check - Parse cdm.cfg and save result in workdir
+      shell: sed {{ sed_change_cmd }} {{ workdir }}/{{ cdm_filename }}.bck.{{ date_time }} > {{ workdir }}/{{ cdm_filename }}.new.{{ date_time }} warn=false
+      when: not disable_monitoring
+
+    - name: Check if original file and parsed file differ
+      command: diff {{ workdir }}/{{ cdm_filename }}.bck.{{ date_time }} {{ workdir }}/{{ cdm_filename }}.new.{{ date_time }}
+      register: diff_result
+      failed_when: diff_result.rc not in [0, 1]
+      changed_when: False
+
+    - name: Replace original cdm.cfg with the parsed version if they differ
+      shell: cat {{ workdir }}/{{ cdm_filename }}.new.{{ date_time }} > {{ cdm_file }}
+      when: diff_result.rc == 1
+
+    - name: Restart nimbus if file is changed
+      service:
+        name: nimbus
+        state: restarted
+      when: diff_result.rc == 1
+
+    - name: Create token file if configuration was changed
+      file:
+        path: "{{ workdir }}/changed.{{ date_time }}"
+        state: touch
+      when: diff_result.rc == 1
+
+    - name: Create a token file if the configuration is equal
+      file:
+        path: "{{ workdir }}/not_changed.{{ date_time }}"
+        state: touch
+      when: diff_result.rc == 0

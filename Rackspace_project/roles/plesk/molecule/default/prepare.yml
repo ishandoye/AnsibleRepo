@@ -1,0 +1,25 @@
+---
+- name: Prepare docker containers for Plesk installation
+  hosts: all
+  gather_facts: true
+  gather_subset: min
+  tasks:
+    - name: Install required packages
+      package:
+        name:
+          - epel-release
+          - iproute
+        state: present
+
+    # Upstream epel-release provides the crb script to enable crb/powertools
+    - name: Enable CRB/Powertools repo
+      command: /usr/bin/crb enable
+
+    - name: Ensure cron.d folder exists
+      file:
+        path: /etc/cron.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+...

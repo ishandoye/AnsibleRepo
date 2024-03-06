@@ -1,0 +1,31 @@
+# Wrapper to run configsnap via Ansible
+#
+# Command line vars:
+#   ticket
+#   phase
+#   uselocalfortesting
+#
+# If uselocalfortesting is defined, configsnap from the current working directory
+# will be used instead of downloading from upstream.
+#
+# Run like this:
+#   ht -A --playbook --ansibleargs "-b rs-configsnap.yml --extra-vars 'ticket=12345-67890 phase=pre'" DEVICEID/TICKETID
+#
+# configsnap output is saved to configsnapoutput-<ticket>-<phase>.txt
+
+- hosts: all
+  become: True
+  gather_facts: true
+
+  vars_prompt:
+    - name: ticket
+      prompt: "Ticket number"
+      private: no
+    - name: phase
+      prompt: "Phase (typically pre, qc or post)"
+      private: no
+
+  tasks:
+  - include_role:
+      name: configsnap
+...

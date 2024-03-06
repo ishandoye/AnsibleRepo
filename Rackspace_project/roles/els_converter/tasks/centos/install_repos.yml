@@ -1,0 +1,88 @@
+- name: Ensure yum-utils is installed
+  yum:
+    name: yum-utils
+    state: present
+
+- name: Disable EPEL
+  command: yum-config-manager --disable *epel*
+  changed_when: false
+  ignore_errors: true
+
+- name: Disable IUS
+  command: yum-config-manager --disable *ius*
+  changed_when: false
+  ignore_errors: true
+
+- block:
+    - name: Add Centos Release
+      yum:
+        name: https://rax.mirror.rackspace.com/release/centos-release-rackspace-latest-7.noarch.rpm
+        disable_gpg_check: true
+        disable_excludes: all
+        state: present
+        validate_certs: false
+
+  rescue:
+    - name: Report CentOS Release Install Error
+      delegate_to: localhost
+      become: false
+      uri:
+        url: "https://stepladder.rax.io/api/rigatoni/v1/reports/GTSENG-205/{{ device_id }}"
+        method: POST
+        return_content: true
+        headers:
+          accept: application/json
+          X-Auth-Token: "{{ rackertoken }}"
+        body: "{\"result_code\":\"18\"}"
+        body_format: json
+      when: rigatoni
+
+    - name: Fail on CentOS Release Install
+      fail:
+        msg: "There was an error installing Centos Release"
+
+- block:
+    - name: Add RAX Release
+      yum:
+        name: https://rax.mirror.rackspace.com/release/rax-release-rackspace-latest-7.noarch.rpm
+        disable_gpg_check: true
+        disable_excludes: all
+        state: present
+        validate_certs: false
+
+  rescue:
+    - name: Report RAX Release Install Error
+      delegate_to: localhost
+      become: false
+      uri:
+        url: "https://stepladder.rax.io/api/rigatoni/v1/reports/GTSENG-205/{{ device_id }}"
+        method: POST
+        return_content: true
+        headers:
+          accept: application/json
+          X-Auth-Token: "{{ rackertoken }}"
+        body: "{\"result_code\":\"19\"}"
+        body_format: json
+      when: rigatoni
+
+    - name: Fail on RAX Repo Install
+      fail:
+        msg: "There was an error installing RAX Repo"
+
+- name: Add EPEL for EL7
+  yum:
+    name: epel-release-rackspace
+    disable_excludes: all
+    state: present
+  when:
+    - epelfound is defined
+    - ansible_distribution_major_version == 7
+
+- name: Add IUS for EL7
+  yum:
+    name: ius-release-rackspace
+    disable_excludes: all
+    state: present
+  when:
+    - iusfound is defined
+    - ansible_distribution_major_version == 7

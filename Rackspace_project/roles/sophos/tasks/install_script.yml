@@ -1,0 +1,36 @@
+---
+- name: Fetching the installer
+  block:
+  - name: Look for local copy of the installer
+    stat:
+      path: "{{ tmp_dir }}/{{ sophos_installer }}"
+    register: local_installer
+
+  # Fetch the installer only when it does not exist locally or when is stale
+  # for 3 days.
+  - name: Fetch the installer
+    get_url:
+      url: "{{ url_installer }}"
+      dest: "{{ tmp_dir }}/{{ sophos_installer }}"
+    when: >-
+      ( not local_installer.stat.exists or
+        ( '%j' | strftime(ansible_date_time.epoch) | int -
+          '%j' | strftime(local_installer.stat.ctime) | int
+        ) | abs > 3
+      )
+  become: false
+  run_once: true
+  delegate_to: localhost
+
+- name: Push installer
+  copy:
+    src: "{{ tmp_dir }}/{{ sophos_installer }}"
+    dest: "{{ sophos_installer_script_bin }}"
+    mode: 0755
+
+- name: Update variable for installer script
+  set_fact:
+    sophos_installer_bin: >-
+      {{ discovered_interpreter_python|quote }}
+      {{ sophos_installer_script_bin|quote }}
+...

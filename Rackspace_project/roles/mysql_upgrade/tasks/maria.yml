@@ -1,0 +1,115 @@
+---
+- name: Remove old MariaDB packages
+  include: remove.yml
+
+- name: Set mysql_new_version
+  set_fact:
+    mysql_new_version: "{{ upgrade_version }}"
+
+- name: Configure MariaDB repos for Red Hat
+  block:
+  - name: Set MariaDB URL suffix fact for RHEL
+    set_fact:
+      mariadb_repo_suffix: "rhel{{ ansible_distribution_major_version }}-amd64"
+    when: ansible_distribution != "CentOS" and ansible_os_family == "RedHat"
+
+  - name: Set MariaDB URL suffix fact for CentOS
+    set_fact:
+      mariadb_repo_suffix: "centos{{ ansible_distribution_major_version }}-amd64"
+    when: ansible_distribution == "CentOS"
+
+  - name: Set MariaDB 10.1 repo URL fact
+    set_fact:
+      mariadb_repo_url: "{{ mariadb_10_1_repo }}/{{ mysql_new_version }}/{{ mariadb_repo_suffix }}"
+    when: "mysql_new_version == 10.1"
+
+  - name: Set MariaDB repo URL fact
+    set_fact:
+      mariadb_repo_url: "{{ mariadb_base_repo }}/{{ mysql_new_version }}/{{ mariadb_repo_suffix }}"
+    when: "mysql_new_version != 10.1"
+
+  - name: Reset MariaDB AppStream module
+    command: "dnf module reset -y mariadb"
+    when: ansible_distribution_major_version == "8"
+
+  - name: Disable MariaDB AppStream module
+    command: "dnf module disable -y mariadb"
+    when: ansible_distribution_major_version == "8"
+
+  - name: Enable MariaDB repo
+    yum_repository:
+      name: "MariaDB{{ mysql_new_version }}"
+      file: MariaDB
+      module_hotfixes: true
+      baseurl: "{{ mariadb_repo_url }}"
+      description: "MariaDB Server {{ mysql_new_version }}"
+      enabled: true
+      gpgkey: "https://mirror.rackspace.com/mariadb/yum/RPM-GPG-KEY-MariaDB"
+      gpgcheck: true
+    when: ansible_distribution_major_version == "8"
+
+  - name: Enable MariaDB repo
+    yum_repository:
+      name: "MariaDB{{ mysql_new_version }}"
+      file: MariaDB
+      baseurl: "{{ mariadb_repo_url }}"
+      description: "MariaDB Server {{ mysql_new_version }}"
+      enabled: true
+      gpgkey: "https://mirror.rackspace.com/mariadb/yum/RPM-GPG-KEY-MariaDB"
+      gpgcheck: true
+    when: ansible_distribution_major_version == "7"
+  when: ansible_os_family == "RedHat"
+
+- name: Configure MariaDB repos for Ubuntu
+  block:
+    - name: Add MariaDB signing key
+      apt_key:
+        url: https://mariadb.org/mariadb_release_signing_key.asc
+        state: present
+
+    - name: Check if MariaDB.list sources file exists
+      stat:
+        path: /etc/apt/sources.list.d/MariaDB.list
+      register: mariadb_sources
+
+    - name: Backup MariaDB.list sources file if exists
+      copy:
+        src: /etc/apt/sources.list.d/MariaDB.list
+        dest: /home/rack/{{ ticket_no }}/MariaDB.list
+      when: mariadb_sources.stat.exists
+
+    - name: Remove MariaDB.list sources file if exists
+      file:
+        path: /etc/apt/sources.list.d/MariaDB.list
+        state: absent
+      when: mariadb_sources.stat.exists
+
+    - name: Disable all other MariaDB deb repos
+      apt_repository:
+        repo: deb http://mirror.rackspace.com/mariadb/repo/{{ item }}/ubuntu {{ ansible_distribution_release }} main
+        state: absent
+      loop: "{{ mariadb_versions }}"
+
+    - name: Disable all other MariaDB deb-src repos
+      apt_repository:
+        repo: deb-src http://mirror.rackspace.com/mariadb/repo/{{ item }}/ubuntu {{ ansible_distribution_release }} main
+        state: absent
+      loop: "{{ mariadb_versions }}"
+
+    - name: Enable targeted MariaDB deb repo
+      apt_repository:
+        repo: deb http://mirror.rackspace.com/mariadb/repo/{{ mysql_new_version }}/ubuntu {{ ansible_distribution_release }} main
+
+    - name: Enable targeted MariaDB deb-src repo
+      apt_repository:
+        repo: deb-src http://mirror.rackspace.com/mariadb/repo/{{ mysql_new_version }}/ubuntu {{ ansible_distribution_release }} main
+  when: ansible_distribution == "Ubuntu"
+
+- name: Install MariaDB server
+  package:
+    name:
+      - mariadb-server
+    state: latest
+
+- name: Run mysql_upgrade
+  include: upgrade.yml

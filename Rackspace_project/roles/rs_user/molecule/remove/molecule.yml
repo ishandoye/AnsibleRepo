@@ -1,0 +1,54 @@
+---
+dependency:
+  name: galaxy
+  enabled: false
+
+driver:
+  name: docker
+
+lint: |
+  set -e
+  yamllint .
+
+platforms:
+  - name: rsuser_c6
+    image: docker.artifacts.rackspace.net/centos:6
+
+  - name: rsuser_c7
+    image: docker.artifacts.rackspace.net/centos:7
+
+  - name: rsuser_c8
+    image: docker.artifacts.rackspace.net/centos:8
+
+  - name: rsuser_u16
+    image: docker.artifacts.rackspace.net/ubuntu:16.04
+
+  - name: rsuser_u18
+    image: docker.artifacts.rackspace.net/ubuntu:18.04
+
+  - name: rsuser_u20
+    image: docker.artifacts.rackspace.net/ubuntu:20.04
+
+provisioner:
+  name: ansible
+  connection_options:
+    # This is a hardcoded "test" password used to verify that the set password
+    # works as expected during verify step
+    ansible_become_password: 'cho^ur4Eikoo<giu7Kochaep'
+
+scenario:
+  name: remove
+  test_sequence:
+    - syntax
+    - destroy
+    - create
+    - prepare
+    - converge
+    - side_effect
+    - verify
+    - destroy
+
+verifier:
+  name: ansible
+  enabled: true
+...

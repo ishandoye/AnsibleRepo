@@ -1,0 +1,85 @@
+---
+dependency:
+  name: galaxy
+  enabled: false
+
+driver:
+  name: docker
+
+lint: |
+  yamllint .
+
+platforms:
+  - name: molecule_sophos_c7
+    image: ${DOCKER_REPO:-docker.artifacts.rackspace.net}/centos:7
+    privileged: true
+    network_mode: ${DOCKER_NETWORK_MODE:-bridge}
+    command: /usr/sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule_sophos_c8
+    image: ${DOCKER_REPO:-docker.artifacts.rackspace.net}/centos:8
+    privileged: true
+    network_mode: ${DOCKER_NETWORK_MODE:-bridge}
+    command: /usr/sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule_sophos_u16
+    image: ${DOCKER_REPO:-docker.artifacts.rackspace.net}/ubuntu:16.04
+    privileged: true
+    network_mode: ${DOCKER_NETWORK_MODE:-bridge}
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule_sophos_u18
+    image: ${DOCKER_REPO:-docker.artifacts.rackspace.net}/ubuntu:18.04
+    privileged: true
+    network_mode: ${DOCKER_NETWORK_MODE:-bridge}
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule_sophos_u20
+    image: ${DOCKER_REPO:-docker.artifacts.rackspace.net}/ubuntu:20.04
+    privileged: true
+    network_mode: ${DOCKER_NETWORK_MODE:-bridge}
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+provisioner:
+  name: ansible
+  log: true
+  env:
+    ANSIBLE_LIBRARY: ../../../../library
+    ANSIBLE_MODULE_UTILS: ../../../../module_utils
+    ANSIBLE_ROLES_PATH: ../../../../roles
+  playbooks:
+    converge: ../resources/converge.yml
+    cleanup: ../resources/cleanup.yml
+    prepare: ../resources/prepare.yml
+    verify: ../resources/verify_install.yml
+  inventory:
+    group_vars:
+      all:
+        use_installer_pkg: ${USE_INSTALLER_PKG:-1}
+
+scenario:
+  test_sequence:
+    - syntax
+    - cleanup
+    - destroy
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - cleanup
+    - destroy
+
+verifier:
+  name: ansible
+...

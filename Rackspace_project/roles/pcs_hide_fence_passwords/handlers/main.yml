@@ -1,0 +1,23 @@
+---
+- name: Stop haveged service
+  service:
+    name: haveged
+    state: stopped
+  become: true
+- name: Remove haveged daemon
+  yum:
+    name: haveged
+    state: absent
+  become: true
+- name: Cleanup temp directory
+  local_action:
+    module: file
+    path: "{{ tmpdir.path }}"
+    state: absent
+- name: Remove archive file
+  file:
+    path: /root/gpg.tgz
+    state: absent
+  become: true
+  when: inventory_hostname == groups['all'][0]
+...

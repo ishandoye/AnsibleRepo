@@ -1,0 +1,245 @@
+---
+- name: Determine first node
+  set_fact:
+    first_node: "{{ rs_server | int }}"
+  run_once: true
+
+- name: Test first node has been agreed
+  assert:
+    that: "hostvars[item].first_node == first_node"
+  with_items: "{{ hostvars }}"
+
+- name: Ensure bond0 is already configured
+  fail:
+    msg: "bond0 is not configured"
+  when: ansible_bond0 is not defined
+
+- name: Check for presence of bonding.py script
+  stat:
+    path: "{{ item }}"
+  register: bonding_script_stat
+  loop: "{{ bonding_script_locations }}"
+
+- name: Select which bonding.py script to use
+  set_fact:
+    bonding_script: >-
+      {{
+        (bonding_script_stat.results|map(attribute='stat')|
+         selectattr('exists')|first)['path']|default(omit)
+      }}
+
+- name: Verify we selected a bonding.py script
+  assert:
+    that:
+      - bonding_script is defined
+      - bonding_script != ""
+    quiet: true
+    fail_msg: "Couldn't find bonding.py script in {{ bonding_script_locations }}"
+
+- name: Get remaining bonded interfaces (to include)
+  shell: >-
+    {{ discovered_interpreter_python }} {{ bonding_script }} --onlypeers
+    | sed -e '1,/Interface Groups:/ d'
+    | grep -v {{ ansible_bond0.slaves[0] }} | tr ' ' '\n'
+  register: bonded_interfaces
+  when: not already_bonded
+  failed_when: bonded_interfaces.stdout_lines | length != 2
+  changed_when: false
+
+- name: Configure bonding and set first node IP
+  command: >-
+    {{ discovered_interpreter_python }} {{ bonding_script }} --unattend --bond=bond1
+      --ip={{ interconnect_node_1 }} --netmask=255.255.255.0
+      --iface={{ bonded_interfaces.stdout_lines[0] }}
+      --iface={{ bonded_interfaces.stdout_lines[1] }}
+  when:
+    - not already_bonded
+    - first_node | int == rs_server | int
+  register: bonding
+
+- name: Configure bonding and set second node IP
+  command: >-
+    {{ discovered_interpreter_python }} {{ bonding_script }} --unattend --bond=bond1
+    --ip={{ interconnect_node_2 }} --netmask=255.255.255.0
+    --iface={{ bonded_interfaces.stdout_lines[0] }}
+    --iface={{ bonded_interfaces.stdout_lines[1] }}
+  when:
+    - not already_bonded
+    - first_node | int != rs_server | int
+  register: bonding
+
+- name: Restart network service
+  service:
+    name: "{{ network_service }}"
+    state: restarted
+  when: bonding.rc is defined
+
+- name: Check if MTU is configured
+  command: "grep '^MTU=' /etc/sysconfig/network-scripts/ifcfg-bond1"
+  register: mtu
+  failed_when: false
+  changed_when: false
+
+- name: Set MTU on bond1 to 9000
+  lineinfile:
+    path: /etc/sysconfig/network-scripts/ifcfg-bond1
+    regexp: '^MTU='
+    line: "MTU=9000"
+  register: bond1_mtu
+
+- name: Restart network service
+  service:
+    name: "{{ network_service }}"
+    state: restarted
+  when: bond1_mtu is changed
+
+- name: Test jumbo packets on bond1
+  shell: >-
+    ping -c 5 -s 8000 -M do -I bond1 {{ interconnect_node_1 }} &&
+    ping -c 5 -s 8000 -M do -I bond1 {{ interconnect_node_2 }}
+  register: jumbo_test
+  failed_when: false
+
+- name: Set MTU on bond1 to 1500 (fallback)
+  lineinfile:
+    path: /etc/sysconfig/network-scripts/ifcfg-bond1
+    regexp: '^MTU='
+    line: "MTU=1500"
+  when: jumbo_test.rc is defined and jumbo_test.rc != 0
+
+- name: Restart network service (fallback)
+  service:
+    name: "{{ network_service }}"
+    state: restarted
+  when: jumbo_test.rc is defined and jumbo_test.rc != 0
+
+- name: Test ping on bond1 (fallback)
+  shell: >-
+    ping -c 5 -s 8000 -I bond1 {{ interconnect_node_1 }} &&
+    ping -c 5 -s 8000 -I bond1 {{ interconnect_node_2 }}
+  changed_when: false
+  when: jumbo_test.rc is defined and jumbo_test.rc != 0
+
+- name: Set MOTD
+  copy:
+    src: motd
+    dest: /etc/motd
+
+- name: Get Datacenter
+  slurp:
+    src: /root/.rackspace/datacenter
+  register: datacenter
+
+- name: Set NTP Datacenter
+  set_fact:
+    ntp_datacenter: "{{ datacenter['content'] | b64decode | replace('\n', '') }}"
+
+- name: Fix DFW Datacenter
+  set_fact:
+    ntp_datacenter: "DFW1"
+  when: ntp_datacenter == "DFW3"
+
+- name: Fix IAD Datacenter
+  set_fact:
+    ntp_datacenter: "IAD3"
+  when: ntp_datacenter == "IAD2"
+
+- name: Set NTP servers
+  lineinfile:
+    path: /etc/ntp.conf
+    line: "server cachens-1.{{ ntp_datacenter }}.pub.dns.rackspace.com"
+  when: ansible_os_family == "RedHat" and ansible_distribution_version|int <= 6
+  register: ntp_changed
+
+- name: Restart NTP
+  service:
+    name: ntpd
+    state: restarted
+  when: ansible_os_family == "RedHat" and ansible_distribution_version|int <= 6 and ntp_changed.changed
+
+- name: Get HBA types
+  shell: "/sbin/lspci | grep -i 'Fibre Channel' | sed 's/.* Fibre Channel: //' | sort"
+  register: hba_types
+  changed_when: false
+
+- name: Check HBA Types match on all servers
+  assert:
+    that: "hostvars[item].hba_types.stdout == hba_types.stdout"
+  with_items: "{{ hostvars }}"
+  when: (first_node | int == rs_server | int)
+  any_errors_fatal: True
+
+- name: Get LUNs
+  shell: "/sbin/powermt display dev=all |  egrep 'Pseudo|Logical' | sed 'N;s/\\n/ /;'"
+  register: lun_list
+  changed_when: false
+
+- name: Check LUNs match on all servers
+  set_fact:
+    luns_differ: "{{ (hostvars[item].lun_list.stdout != lun_list.stdout) }}"
+
+- name: Remove previous LUN mappings file
+  file:
+    path: /root/lun_mappings
+    state: absent
+  when: luns_differ
+
+- name: Export LUN mappings
+  command: /sbin/emcpadm export_mappings -f /root/lun_mappings
+  when:
+    - luns_differ
+    - first_node | int == rs_server | int
+
+- name: Download LUN mappings
+  fetch:
+    src: /root/lun_mappings
+    dest: /tmp/lun_mappings
+    flat: yes
+  when:
+    - luns_differ
+    - first_node | int == rs_server | int
+
+- name: Upload LUN mappings
+  copy:
+    src: /tmp/lun_mappings
+    dest: /root/lun_mappings
+  when:
+    - luns_differ
+    - first_node | int != rs_server | int
+
+- name: Import LUN mappings
+  command: /sbin/emcpadm import_mappings -f /root/lun_mappings
+  when:
+    - luns_differ
+    - first_node | int != rs_server | int
+
+- name: Get LUNs to confirm
+  shell: "/sbin/powermt display dev=all |  egrep 'Pseudo|Logical' | sed 'N;s/\\n/ /;'"
+  register: lun_confirm_list
+  changed_when: false
+
+- name: Confirm LUNs match on all servers
+  assert:
+    that: "hostvars[item].lun_confirm_list.stdout == lun_confirm_list.stdout"
+  with_items: "{{ hostvars }}"
+
+- name: Remove LUN mappings file
+  file:
+    path: /root/lun_mappings
+    state: absent
+  when: luns_differ
+
+- name: Manual tasks
+  debug:
+    msg:
+      - "Please ensure there are 5 additional IPs assigned to the Oracle RAC Cluster device"
+      - "Please add these to the NAT fields in CORE - assign 2 to 'VIP1' and 'VIP2'"
+      - "The remaining 3 IPs should be assigned to 'SCAN{1-3}' in CORE"
+      - "Then determine whether the servers should be using the racscan.com domain - this is normally the case. The account team should know, otherwise default to using this domain"
+      - "If so, the hostnames need changing to use racscan.com. Keep the first part of the hostname, but change the domain. Use https://stepladder.rax.io/hostname_change"
+      - "If using racscan.com, IPs then need assigning in https://racker.my.rackspace.com/myrs-portal/seamlessLogin?account_number=856228&next_url=/domain/show/2538691"
+      - "Add in the new server hostnames (eg '123456-oracle1.racscan.com') with their *PUBLIC* IPs"
+      - "Additionally, create a round-robin DNS entry for 'scan01-987654.racscan.com' (where 987654 is the cluster device ID), pointing to the 3 SCAN IPs above"
+      - "Finally, run /root/checkos.pl and fill in the template there with the details"
+  when: (first_node | int == rs_server | int)
+...

@@ -1,0 +1,19 @@
+---
+- name: Test uninstalling Nimbus
+  hosts: all
+  tasks:
+    - name: Include dummy Rackspace info
+      include_role:
+        name: dummy_raxfacts
+
+    - name: Pass nimbus installer through control host
+      set_fact:
+        push: true
+      when: (lookup('env', 'NO_PUSH')|length == 0 )
+
+    - name: Execute nimbus role
+      include_role:
+        name: nimbus
+      vars:
+        remove: true
+

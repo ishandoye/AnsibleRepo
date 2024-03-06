@@ -1,0 +1,74 @@
+---
+- name: Include web service
+  include_vars: "../vars/{{ ansible_os_family }}.yml"
+
+- name: Check php.ini files
+  stat:
+    path: "{{ item }}"
+  with_items:
+    - /etc/php5/cli/php.ini
+    - /etc/php5/fpm/php.ini
+    - /etc/php5/apache2/php.ini
+    - /etc/php.ini
+    - /etc/php/7.0/cli/php.ini
+    - /etc/php/7.0/fpm/php.ini
+    - /etc/php/7.0/apache2/php.ini
+  register: php_files
+
+- name: Update date.timezone on php.ini
+  lineinfile:
+    dest: "{{ item.item }}"
+    state: present
+    regexp: '^[\s]*[\;]{0,1}date.timezone[\s]*='
+    line: "date.timezone = {{ timezone }}"
+    backup: yes
+  with_items:
+    - "{{ php_files.results|selectattr('stat.exists')|list }}"
+
+- name: verify apache is running
+  stat:
+    path: "{{ apache_pid_path }}"
+  register: apache_pid
+
+- name: restart apache service
+  command: apachectl configtest
+  when: apache_pid.stat.exists == True
+  register: apache_config_result
+  ignore_errors: yes
+
+- name: Apache config error
+  fail:
+     msg: "Apache config Error please check manaully"
+  when: apache_config_result is failed
+
+- name: restarting apache
+  debug:
+    msg: "Restarting apache service"
+  when: apache_pid.stat.exists == True and apache_config_result is successful
+  notify: restart apache
+
+- name: verify php-fpm is running
+  stat:
+    path: "{{ php_fpm_pid_path }}"
+  register: fpm_pid
+
+- name: verify no syntax errors on php-fpm
+  command: "{{ php_fpm_srv }} -t"
+  when: fpm_pid.stat.exists == True
+  register: php_fpm_config_result
+  ignore_errors: yes
+
+- name: php-fpm config test results
+  fail:
+    msg: "php-fpm config Error please check manaully"
+  when: php_fpm_config_result is failed
+
+- name: restarting php-fpm
+  debug:
+     msg: "Restarting php-fpm service"
+  when: fpm_pid.stat.exists == True and php_fpm_config_result is successful
+  notify: restart php-fpm
+
+- name: verify php7.0-fpm is configured
+  include: php7-fpm.yml
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'

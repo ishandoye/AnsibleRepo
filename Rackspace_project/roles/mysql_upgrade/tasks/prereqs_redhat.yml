@@ -1,0 +1,54 @@
+---
+- name: Install MySQL Python on EL7
+  yum:
+    name: MySQL-python
+    state: present
+  tags: mysql_upgrade
+  when: ansible_distribution_major_version == "7"
+
+- name: Install PyMySQL Python on EL8
+  yum:
+    name: python3-PyMySQL
+    state: present
+  tags: mysql_upgrade
+  when: ansible_distribution_major_version == "8"
+
+- name: Ensure rsync is installed
+  package:
+    name: rsync
+    update_cache: true
+
+- block:
+  - name: List current repos
+    ansible.builtin.command:
+      cmd: "{{ yum_config_mgr_cmd[ansible_distribution_major_version | int] }}"
+    register: repo_list
+    changed_when: false
+
+  - name: Get current package info
+    ansible.builtin.package_facts:
+      manager: auto
+
+  - name: Install epel repo
+    ansible.builtin.package:
+      name: epel-release-rackspace
+    when:
+    - not 'epel-release-rackspace' in packages
+    - not 'epel-release' in packages
+    - not repo_list.stdout is search('epel')
+
+  - name: Install PV if upgrade_version is > 10.8
+    package:
+      name: pv
+      state: present
+
+  when: upgrade_version is version('10.8', '>')
+
+- name: Get MySQL info (Red Hat)
+  community.mysql.mysql_variables:
+    variable: "{{ item }}"
+  with_items:
+    - datadir
+    - tmpdir
+  register: mysql_vars
+  tags: mysql_upgrade

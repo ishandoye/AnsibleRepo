@@ -1,0 +1,53 @@
+---
+- name: Prepare
+  hosts: all
+  gather_facts: true
+  pre_tasks:
+    - name: Download rax yum repo file
+      get_url:
+        url: >-
+          {{
+            'http://rax.mirror.rackspace.com/el/{}/rax.repo'.format(
+              ansible_distribution_major_version)
+          }}
+        dest: /etc/yum.repos.d/rax.repo
+        mode: 0644
+        owner: root
+        group: root
+      when: ansible_os_family == "RedHat"
+
+    - name: Configure Ubuntu rax repo
+      block:
+        - name: Create source list
+          lineinfile:
+            dest: /etc/apt/sources.list.d/rax.mirror.rackspace.com.list
+            create: true
+            state: present
+            insertbefore: BOF
+            line: >-
+              deb https://rax.mirror.rackspace.com/ubuntu
+              {{ansible_distribution_release}} main
+            mode: 0644
+            owner: root
+            group: root
+
+        - name: Import gpg keys
+          shell: >-
+            curl -s https://rax.mirror.rackspace.com/ubuntu/{{ item }}
+            | apt-key add -
+          args:
+            warn: false
+          loop:
+            - rackspace-ubuntu-archive-keyring.gpg
+            - rackspace-ubuntu-focal-key.gpg
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure rack user exists
+      user:
+        name: rack
+        state: present
+
+  roles:
+    - role: dummy_raxfacts
+    - role: sophos
+...

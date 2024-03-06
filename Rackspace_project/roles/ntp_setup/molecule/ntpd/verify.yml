@@ -1,0 +1,23 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: true
+  gather_subset: min
+  tasks:
+  - name: Get services
+    service_facts:
+
+  - name: Get service name
+    set_fact:
+      svc_name: "{%- if ansible_distribution == 'Ubuntu' -%}
+        systemd-timesyncd.service
+        {%- elif ansible_distribution_major_version|int == 6 -%}
+        ntpd
+        {%- else -%}
+        chronyd.service
+        {%- endif -%}"
+
+  - name: Verify service is enabled
+    assert:
+      that: services[svc_name].status == "enabled"
+...

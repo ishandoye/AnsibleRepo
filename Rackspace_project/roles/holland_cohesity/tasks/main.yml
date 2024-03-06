@@ -1,0 +1,88 @@
+---
+- name: Get current package info
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Stop here if rs-holland-cohesity is already installed
+  block:
+    - name: Report if rs-holland-cohesity is already installed
+      debug:
+        msg: rs-holland-cohesity is already installed
+
+    - name: Stop tasks for host
+      meta: end_host
+  when: >-
+    'rs-holland-cohesity' in packages or 'rs-holland-py3-cohesity' in packages
+
+- name: Verify all installed holland packages for changed files
+  ansible.builtin.command:
+    cmd: "{{ pkg_verify_cmd[ansible_os_family | lower] }} {{ pkg }}"
+  loop: "{{ packages.keys() | select('search', 'holland') | list }}"
+  loop_control:
+    loop_var: pkg
+  changed_when: false
+  failed_when: pkg_verify.rc | int not in [0, 1]
+  register: pkg_verify
+
+- name: Append any changed config files to the list to backup
+  ansible.builtin.set_fact:
+    holland_conf_files: >-
+      {{
+        holland_conf_files + [item]
+      }}
+  loop: >-
+    {{
+      pkg_verify.results | map(attribute='stdout_lines') | flatten |
+        select('match', pkg_conf_regex) |
+        map('regex_replace', pkg_conf_regex, '\1') | list
+     }}
+  when: item not in holland_conf_files
+
+- name: Check for current holland config files
+  ansible.builtin.stat:
+    path: "{{ conf_file }}"
+  register: conf_files
+  loop: "{{ holland_conf_files }}"
+  loop_control:
+    loop_var: conf_file
+
+- name: Backup existing holland config files
+  ansible.builtin.copy:
+    src: "{{ item.conf_file }}"
+    dest: "{{ item.conf_file }}.backup"
+    remote_src: true
+    backup: true
+    mode: '0640'
+    owner: root
+    group: root
+  when: item.stat.exists
+  loop: "{{ conf_files.results }}"
+  loop_control:
+    label: "{{ item.conf_file }}"
+
+- name: Configure repositories
+  ansible.builtin.include_tasks:
+    file: "{{ ansible_os_family | lower }}.yml"
+
+- name: Uninstall unwanted packages
+  ansible.builtin.package:
+    name: "{{ uninstall_packages }}"
+    state: absent
+
+- name: Install rs-holland-cohesity
+  ansible.builtin.package:
+    name: "{{ install_packages }}"
+    state: present
+
+- name: Restore holland config files
+  ansible.builtin.copy:
+    src: "{{ item.conf_file }}.backup"
+    dest: "{{ item.conf_file }}"
+    remote_src: true
+    mode: '0640'
+    owner: root
+    group: root
+  when: item.stat.exists
+  loop: "{{ conf_files.results }}"
+  loop_control:
+    label: "{{ item.conf_file }}"

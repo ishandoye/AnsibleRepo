@@ -1,0 +1,92 @@
+---
+- name: Prepare containers for testing
+  hosts: all
+  gather_facts: true
+  vars:
+    rax_mirror_base: https://rax.mirror.rackspace.com
+    rax_release_repo: "el/{{ ansible_distribution_major_version }}/rax.repo"
+    rax_release_rpm: >-
+      rax-release-rackspace-latest-{{
+        ansible_distribution_major_version
+      }}.noarch.rpm
+    rax_deb_url: >-
+      {{ rax_mirror_base }}/{{ ansible_distribution | lower }}
+    rax_debian_key: "rackspace-{{ ansible_distribution_release }}-keyring.gpg"
+    rax_keys:
+      buster: "{{ rax_debian_key }}"
+      bullseye: "{{ rax_debian_key }}"
+      bionic: "rackspace-ubuntu-archive-keyring.gpg"
+      focal: "rackspace-ubuntu-focal-key.gpg"
+      jammy: "rackspace-ubuntu-jammy-keyring.gpg"
+    rax_key_filename: >-
+      {{
+        (ansible_distribution_release == "jammy") |
+        ternary("rax.mirror.gpg", "rax.mirror.asc")
+      }}
+  tasks:
+    - name: Setup Red Hat based hosts
+      block:
+        - name: Install rax release rpm
+          ansible.builtin.package:
+            name: "{{ rax_mirror_base }}/release/{{ rax_release_rpm }}"
+            state: present
+            disable_gpg_check: true
+          when: ansible_distribution_major_version | int > 6
+          register: rax_repo
+          until: rax_repo is not failed
+          retries: 5
+          delay: 5
+
+        - name: Install rax almalinux repo
+          ansible.builtin.dnf:
+            name: almalinux-release-rackspace
+            state: present
+          when: ansible_distribution_major_version | int > 7
+          register: alma_repo
+          until: alma_repo is not failed
+          retries: 5
+          delay: 5
+
+        - name: Install epel release
+          ansible.builtin.package:
+            name: epel-release-rackspace
+            state: present
+          when: ansible_distribution_major_version | int > 6
+      when: ansible_os_family == 'RedHat'
+
+    - name: Setup Debian based hosts
+      block:
+        - name: Ensure apt keyrings folder exists
+          ansible.builtin.file:
+            path: /etc/apt/keyrings
+            state: directory
+            owner: root
+            group: root
+            mode: '0755'
+
+        - name: Get apt keys
+          ansible.builtin.get_url:
+            url: >-
+              {{ rax_deb_url }}/{{ rax_keys[ansible_distribution_release] }}
+            dest: /etc/apt/keyrings/{{ rax_key_filename }}
+            force: true
+            owner: root
+            group: root
+            mode: '0644'
+
+        - name: Add rax repo
+          ansible.builtin.apt_repository:
+            filename: rax.mirror.rackspace.com
+            mode: '0644'
+            state: present
+            install_python_apt: true
+            update_cache: true
+            repo: >-
+              deb
+              [arch=amd64 signed-by=/etc/apt/keyrings/{{ rax_key_filename }}]
+              {{ rax_deb_url }} {{ ansible_distribution_release }} main
+      when: ansible_os_family == 'Debian'
+
+    - name: Install cohesity-agent
+      ansible.builtin.include_role:
+        name: cohesity_agent

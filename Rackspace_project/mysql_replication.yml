@@ -1,0 +1,13 @@
+---
+- hosts: all
+  become: true
+
+  vars_prompt:
+    - name: master
+      prompt: "Replication Master hostname (eg 123456-server.domain.com)"
+      private: no
+
+  tasks:
+  - include_role:
+      name: mysql_replication
+...

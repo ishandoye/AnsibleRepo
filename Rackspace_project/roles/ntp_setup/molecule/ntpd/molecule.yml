@@ -1,0 +1,65 @@
+---
+dependency:
+  enabled: false
+  name: galaxy
+
+driver:
+  name: docker
+
+lint:
+  name: yamllint
+  options:
+    config-data:
+      extends: relaxed
+      rules:
+        line-length:
+          max: 120
+          level: warning
+
+platforms:
+  - name: molecule_c6
+    image: docker-remote.artifacts.rackspace.net/centos:6
+    privileged: true
+
+  - name: molecule_c7
+    image: docker-remote.artifacts.rackspace.net/centos:7
+    privileged: true
+    command: /usr/sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule_u16
+    image: docker-remote.artifacts.rackspace.net/ubuntu:16.04
+    privileged: true
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      # Next line is required if running on an EL-based host with SELinux
+      # - /sys/fs/selinux:/sys/fs/selinux:ro
+
+  - name: molecule_u18
+    image: docker-remote.artifacts.rackspace.net/ubuntu:18.04
+    privileged: true
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+provisioner:
+  name: ansible
+  log: true
+  env:
+    ANSIBLE_FORKS: "7"
+  lint:
+    name: ansible-lint
+    options:
+      x:
+        - 301 # command
+
+scenario:
+  name: ntpd
+
+verifier:
+  name: ansible
+  lint:
+    name: ansible-lint
+...

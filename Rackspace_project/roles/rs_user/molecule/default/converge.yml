@@ -1,0 +1,13 @@
+---
+- name: Test rs_user
+  hosts: all
+  gather_facts: true
+  gather_subset: min
+  vars:
+    rs_ctkapi_info:
+      rack_password: cho^ur4Eikoo<giu7Kochaep
+  tasks:
+    - name: Execute rs_user role
+      include_role:
+        name: rs_user
+...

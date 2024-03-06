@@ -1,0 +1,72 @@
+---
+- name: Verify cohesity agent install
+  hosts: all
+  gather_facts: true
+  module_defaults:
+    assert:
+      quiet: true
+  vars:
+    svc_name: >-
+      cohesity-agent{{
+        (ansible_service_mgr == "systemd") | ternary(".service", "")
+      }}
+    installed_version_path: /opt/cohesityagent/bin/version
+    racktest_files:
+      - bin/racktest
+      - user_scripts/racktest
+  tasks:
+    - name: Collect service facts
+      ansible.builtin.service_facts:
+
+    - name: Block check RHEL6 upstart tasks
+      block:
+        - name: Get {{ svc_name }} service status
+          ansible.builtin.command: initctl status {{ svc_name }}
+          changed_when: false
+          register: upstart_jobs
+
+        - name: Verify that {{ svc_name }} service is running
+          ansible.builtin.assert:
+            that:
+              - upstart_jobs.stdout is match(svc_name + " start/running")
+            fail_msg: "Service '{{ svc_name }}' is not running & enabled"
+      when:
+        - ansible_os_family | lower == "redhat"
+        - ansible_distribution_major_version | int == 6
+
+    - name: Check {{ svc_name }} service is running and enabled
+      ansible.builtin.assert:
+        that:
+          - svc_name is in services
+          - services[svc_name].state == "running"
+          - services[svc_name].status == "enabled"
+        fail_msg: "Service '{{ svc_name }}' is not running & enabled"
+      when: ansible_os_family | lower != "redhat" or
+        ansible_distribution_major_version | int != 6
+
+    - name: Check install path is /opt/cohesityagent
+      ansible.builtin.stat:
+        path: "{{ installed_version_path }}"
+      register: install_path
+
+    - name: Verify install path
+      ansible.builtin.assert:
+        that:
+          - install_path.stat.exists
+          - install_path.stat.isreg
+
+    - name: Check for files we added after install
+      ansible.builtin.stat:
+        path: /opt/cohesityagent/{{ item }}
+      register: racktest_file_stat
+      loop: "{{ racktest_files }}"
+
+    - name: Verify files we added were removed
+      ansible.builtin.assert:
+        that:
+          - not file.stat.exists
+        fail_msg: File {{ file.invocation.module_args.path }} still exists
+      loop: "{{ racktest_file_stat.results }}"
+      loop_control:
+        label: "{{ file.item }}"
+        loop_var: file

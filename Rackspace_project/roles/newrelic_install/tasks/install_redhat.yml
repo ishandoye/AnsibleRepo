@@ -1,0 +1,26 @@
+---
+- name: Add GPG Key
+  rpm_key:
+    key: 'https://download.newrelic.com/infrastructure_agent/gpg/newrelic-infra.gpg'
+    state: present
+
+- name: Detect the instance_type
+  set_fact:
+    os_type: "{{ 'el' if ansible_distribution != 'Amazon' else 'amazonlinux' }}"
+
+- name: Configure Repository Redhat/Centos
+  yum_repository:
+    baseurl: 'https://download.newrelic.com/infrastructure_agent/linux/yum/{{ os_type }}/{{ansible_distribution_major_version}}/{{ ansible_architecture }}/'
+    gpgcheck: "yes"
+    name: 'newrelic-infra'
+    state: present
+    description: 'Newrelic Config'
+
+- name: Update yum cache on Redhat/Centos
+  command: "yum -q makecache -y --disablerepo='*' --enablerepo='newrelic-infra'"
+
+- name: Install NewRelic Agent Redhat/Centos
+  yum:
+    name: newrelic-infra
+    state: present
+  register: is_installed

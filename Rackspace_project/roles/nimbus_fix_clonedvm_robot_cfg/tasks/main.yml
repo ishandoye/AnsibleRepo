@@ -1,0 +1,20 @@
+---
+- name: Configure nimbus robotname
+  lineinfile:
+    path: /opt/nimsoft/robot/robot.cfg
+    regexp: '^(\s+robotname\s+=).*$'
+    line: '\1 {{ rs_customer }}-{{ rs_server }}'
+    state: present
+    backrefs: yes
+    backup: true
+  notify: restart_nimbus
+
+- name: Configure nimbus robotip_alias
+  lineinfile:
+    path: /opt/nimsoft/robot/robot.cfg
+    regexp: '^(\s*robotip_alias\s*=).*$'
+    line: '\1 {{ ansible_host }}'
+    state: present
+    backrefs: yes
+    backup: true
+  notify: restart_nimbus

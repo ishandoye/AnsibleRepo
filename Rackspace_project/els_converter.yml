@@ -1,0 +1,11 @@
+---
+- name: ELS Converter
+  hosts: all
+  serial: 10
+  gather_facts: false
+  become: true
+  tasks:
+    - name: ELS Converter Main
+      include_role:
+        name: els_converter
+...

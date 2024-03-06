@@ -1,0 +1,45 @@
+---
+- name: Verify cohesity agent install
+  hosts: all
+  gather_facts: true
+  module_defaults:
+    assert:
+      quiet: true
+  vars:
+    svc_name: >-
+      cohesity-agent{{
+        (ansible_service_mgr == "systemd") | ternary(".service", "")
+      }}
+    installed_version_path: /opt/cohesityagent
+  tasks:
+    - name: Collect service facts
+      ansible.builtin.service_facts:
+
+    # cohesity-agent detects RHEL6 as using upstart (which is technically
+    # correct...), and installs as an upstart service managed via `initctl`
+    # instead of `chkconfig` and `service`. Ansible won't find it via the
+    # service_facts module though, as that only picks up the sysvinit services
+    - name: Check {{ svc_name }} is not present via upstart
+      ansible.builtin.command: initctl status {{ svc_name }}
+      changed_when: false
+      register: upstart_jobs
+      failed_when: upstart_jobs.rc | int != 1
+      when:
+        - ansible_os_family | lower == "redhat"
+        - ansible_distribution_major_version | int == 6
+
+    - name: Check {{ svc_name }} service is not present
+      ansible.builtin.assert:
+        that:
+          - svc_name is not in services
+        fail_msg: "Service '{{ svc_name }}' is still present"
+
+    - name: Check if /opt/cohesityagent is present
+      ansible.builtin.stat:
+        path: "{{ installed_version_path }}"
+      register: install_path
+
+    - name: Verify /opt/cohesityagent does not exist
+      ansible.builtin.assert:
+        that:
+          - not install_path.stat.exists

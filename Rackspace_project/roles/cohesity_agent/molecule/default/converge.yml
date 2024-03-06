@@ -1,0 +1,6 @@
+---
+- name: Test cohesity agent
+  hosts: all
+  gather_facts: true
+  roles:
+    - role: cohesity_agent

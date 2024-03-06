@@ -1,0 +1,91 @@
+---
+
+- debug:
+    msg: "<br>Running Plesk quality checks..."
+
+## Locale checks
+- name: Check locales
+  shell: "mysql -Ns -u admin -p$(cat /etc/psa/.psa.shadow) -e \"select * from psa.locales where active like 'false';\""
+  register: check_locales
+
+- debug:
+    msg: "{% if 'en-US' in check_locales.stdout %}[FAIL] en-US is disabled in psa.locales{% else %}[PASS] en-US is enabled in psa.locales{% endif %}"
+
+- name: Check def_locale params
+  shell: "mysql -Ns -u admin -p$(cat /etc/psa/.psa.shadow) -e \"select val from psa.misc where param like 'def_locale';\""
+  register: def_locale_params
+
+- debug:
+    msg: "{% if 'en-US' not in def_locale_params.stdout %}[FAIL] def_local is not set to en-US in psa.misc{% else %}[PASS] def_local is set to en-US in psa.misc{% endif %}"
+
+## Plesk upgrade script
+- debug:
+    msg: "<br>Running the Plesk Panel Upgrade checker..."
+
+- name: Download the Plesk upgrade check script 12.5.x and above
+  get_url:
+    url: "http://autoinstall.plesk.com/PSA_{{upgrade_to}}/examiners/panel_preupgrade_checker.php"
+    dest: /home/rack/.plesk_upgrade_checks/panel_preupgrade_checker.php
+    force: yes
+  when: "'12.0' not in psa_version"
+
+- name: Download the Plesk upgrade check script for Plesk 12.0.x
+  get_url:
+    url: "http://autoinstall.plesk.com/PSA_17.5.3/examiners/panel_preupgrade_checker.php"
+    dest: /home/rack/.plesk_upgrade_checks/panel_preupgrade_checker.php
+    force: yes
+  when: "'12.0' in psa_version"
+
+- name: Run Plesk pre-upgrade checker
+  shell: "php -q -d error_reporting=0 /home/rack/.plesk_upgrade_checks/panel_preupgrade_checker.php > /home/rack/.plesk_upgrade_checks/panel_preupgrade_checker 2> /dev/null"
+  ignore_errors: yes
+  register: run_upgrade_checker
+
+- debug:
+    msg: "[WARN] Plesk is already up-to-date"
+  when: run_upgrade_checker.stdout is search("You have already installed the latest version")
+
+- name: Grab the contents of panel_preupgrade_checker
+  slurp:
+    src: /home/rack/.plesk_upgrade_checks/panel_preupgrade_checker
+  register: panel_preupgrade_checker
+
+- debug:
+    msg: "{% if ('ERROR' in panel_preupgrade_checker['content'] | b64decode) or ('WARNING' in panel_preupgrade_checker['content'] | b64decode) %}[FAIL] Errors found in panel_preupgrade_checker. Check!{% else %}[PASS] No errors found in panel_preupgrade_checker{% endif %}"
+  when: panel_preupgrade_checker.content != ""
+
+- debug:
+    msg: "[FAIL] panel_preupgrade_checker could not run. Check manually!"
+  when: panel_preupgrade_checker.content == ""
+
+- debug:
+    msg: "<pre>{{ panel_preupgrade_checker['content'] | b64decode | replace('\n', '<br>')}}</pre>"  # replace filter used for making output in Stepladder clearer
+
+## Plesk repair checks
+- debug:
+    msg: "<br>Running database repair check..."
+  when: "'12.0' not in psa_version"
+
+- name: Run Plesk database repair check
+  shell: "/usr/sbin/plesk repair db -n > /home/rack/.plesk_upgrade_checks/plesk_db_repair_check 2> /dev/null"
+  ignore_errors: yes
+  when: "'12.0' not in psa_version"
+
+- name: Grab contents of repair check
+  slurp:
+    src: /home/rack/.plesk_upgrade_checks/plesk_db_repair_check # Would prefer to use Slurp but '\n' can not be split
+  register: plesk_db_repair_check
+  when: "'12.0' not in psa_version"
+
+- debug:
+    msg: "{% if ('ERROR' in plesk_db_repair_check['content'] | b64decode) or ('WARNING' in plesk_db_repair_check['content'] | b64decode) %}[FAIL] Errors found in database repair check{% else %}[PASS] No errors found in database repair check{% endif %}"
+  when: "'12.0' not in psa_version"
+
+- debug:
+    msg: "<pre>{{ plesk_db_repair_check['content'] | b64decode | replace('\n', '<br>') }}</pre>" # replace filter used for making output in Stepladder clearer
+  when: "'12.0' not in psa_version"
+
+## Other messages
+- debug:
+    msg: "[INFO] Upgrade from Plesk 12.0.x to {{ upgrade_to }}. Ensure you run `plesk db repair -n` after the upgrade"
+  when: "'12.0' in psa_version"

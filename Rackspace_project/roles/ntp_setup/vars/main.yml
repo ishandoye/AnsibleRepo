@@ -1,0 +1,22 @@
+---
+rs_static_ntp_servers:
+  dfw: time.dfw1.rackspace.com
+  hkg: time.hkg1.rackspace.com
+  iad: time.iad1.rackspace.com
+  lon: time.lon.rackspace.com
+  ord: time.ord1.rackspace.com
+  syd: time.syd2.rackspace.com
+
+rs_region_name: "{{ rs_region | lower | regex_replace('[0-9]+','') }}"
+
+rs_time_server_fqdn: "{{ rs_static_ntp_servers[rs_region_name] }}"
+
+fqdn_pattern: "^[a-zA-Z0-9][a-zA-Z0-9.-]+[a-zA-Z0-9.]$"
+
+custom_os_files:
+  - "{{ ansible_distribution|lower }}-{{
+        ansible_distribution_major_version }}.yml"
+  - "{{ ansible_os_family|lower }}-{{
+        ansible_distribution_major_version }}.yml"
+  - "default.yml"
+...

@@ -1,0 +1,7 @@
+---
+
+- debug:
+    msg: "Remaining checks..."
+
+- debug:
+    msg: "[INFO] Please manually run `locate index.php` command as explained at the end of 'Step 2' in the wiki"

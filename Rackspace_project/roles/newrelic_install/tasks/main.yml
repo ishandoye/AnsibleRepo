@@ -1,0 +1,26 @@
+---
+- name:
+  fail:
+    msg: "newrelic license key is not defined"
+  when: license is not defined
+
+- include_tasks: install_debian.yml
+  when: ansible_os_family == 'Debian'
+
+- include_tasks: install_redhat.yml
+  when: ansible_os_family == 'RedHat'
+
+- name: Exit script if newrelic is installed
+  fail:
+     msg: "Newrelic is already installed on {{ inventory_hostname }}"
+  when: not is_installed.changed
+
+- name: Configure Newrelic
+  template:
+    src: newrelic-infra.yml.j2
+    dest: /etc/newrelic-infra.yml
+    mode: 0600
+  notify:
+    - Enable newrelic
+    - Restart newrelic
+  when: is_installed.changed

@@ -1,0 +1,25 @@
+---
+supported_distros:
+  redhat:
+    - 8
+  almalinux:
+    - 8
+  rocky:
+    - 8
+
+stop_services:
+  - dovecot
+  - webmin
+  - vsftpd
+
+remove_packages:
+  - dovecot
+  - webmin
+  - vsftpd
+  - bind-chroot
+  - postfix-perl-scripts
+
+plm_api_url: https://stepladder.rax.io/api/plm
+
+disable_repo_check_tmpfiles_d_path: /etc/tmpfiles.d/plesk_disable_repo_check.conf
+...

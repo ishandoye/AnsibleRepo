@@ -1,0 +1,14 @@
+---
+- name: Look for hints of existing installation
+  stat:
+    path: "{{ item }}"
+  with_items: "{{ nimbus_paths }}"
+  register: nimbus_dir
+  changed_when: "False"
+
+- name: Define nimbus_found_dirs
+  set_fact:
+    nimbus_found_dirs: "{{ nimbus_found_dirs | default([]) + [ item.item ] }}"
+  with_items: "{{ nimbus_dir.results }}"
+  when: item.stat.exists
+...

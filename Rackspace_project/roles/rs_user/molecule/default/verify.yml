@@ -1,0 +1,16 @@
+---
+- name: Verify expected rack user password has been set
+  hosts: all
+  gather_facts: false
+  remote_user: rack
+  become: true
+  tasks:
+    - name: Test
+      command: whoami
+      register: test_command
+      changed_when: false
+
+    - name: Verify results
+      assert:
+        that: ("root" in test_command.stdout)
+...

@@ -1,0 +1,65 @@
+---
+installer_base: https://rax.mirror.rackspace.com/mbu/RSDP/Agents/Linux/
+version_paths:
+  current: Current
+  beta: Future
+  DEFAULT: Archive/{{ install_version }}
+installer_path: >-
+  {{ installer_base }}{{
+    version_paths[install_version | lower] | default(version_paths.DEFAULT)
+  }}
+uninstaller_path: /opt/cohesityagent/bin/uninstall
+supported_distros:
+  centos:
+    - 6
+    - 7
+  redhat:
+    - 6
+    - 7
+    - 8
+    - 9
+  almalinux:
+    - 8
+    - 9
+  rocky:
+    - 8
+    - 9
+  oraclelinux:
+    - 7
+    - 8
+    - 9
+  debian:
+    - 10
+    - 11
+  ubuntu:
+    - 18
+    - 20
+    - 22
+allowed_actions:
+  - install
+  - uninstall
+required_pkgs:
+  redhat:
+    - coreutils
+    - device-mapper
+    - lsof
+    - nfs-utils  # for `mount.nfs`
+    - rsync
+    - "{{
+        (ansible_distribution_major_version | int < 8) |
+          ternary('sysvinit-tools', 'procps-ng')
+        }}"  # for `pidof`
+    - wget
+    - which
+  debian:
+    - coreutils
+    - debianutils  # for `which`
+    - dmsetup
+    - lsof
+    - nfs-common  # for `mount.nfs`
+    - procps  # for `kill`
+    - rsync
+    - sysvinit-utils  # for `pidof`
+    - wget
+installed_version_path: /opt/cohesityagent/bin/version
+installed_version: null

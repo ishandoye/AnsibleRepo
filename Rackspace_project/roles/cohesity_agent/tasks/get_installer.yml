@@ -1,0 +1,47 @@
+---
+# This also tests we have access to the installer download
+# installer_path is set in vars/main.yml
+- name: Read installer links
+  ansible.builtin.uri:
+    url: "{{ installer_path }}"
+    return_content: true
+  register: installer_links
+
+# Strip the <!DOCTYPE> element from the start of the HTML doc, and treat it as
+# xml. Find all of the <a> elements present in the <ul><li> list
+- name: Parse installer links
+  community.general.xml:
+    xmlstring: >
+      {{
+        installer_links.content.splitlines() | reject("match", "<!DOCTYPE") |
+        join("\n")
+      }}
+    xpath: ".//ul/li/a"
+    content: attribute
+  register: parsed_installer_links
+  delegate_to: localhost
+  delegate_facts: true
+  run_once: true
+  become: false
+
+- name: Ensure download path exists
+  ansible.builtin.file:
+    path: "{{ download_path }}"
+    state: directory
+    mode: 0750
+
+- name: Ensure any previous installer is removed
+  ansible.builtin.file:
+    path: "{{ download_path }}/installer"
+    state: absent
+
+- name: Download installer
+  ansible.builtin.get_url:
+    url: >-
+      {{ installer_path }}/{{
+        (parsed_installer_links.matches | map(attribute="a") |
+        selectattr("href", "search", ".*installer$") | first).href
+      }}
+    dest: "{{ download_path }}"
+    mode: 0750
+  register: downloaded_file

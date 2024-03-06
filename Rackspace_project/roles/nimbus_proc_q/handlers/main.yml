@@ -1,0 +1,4 @@
+- name: restart nimbus
+  service:
+    name: nimbus
+    state: restarted

@@ -1,0 +1,93 @@
+---
+mirror: "rax.mirror.rackspace.com"
+sophos_installer: "rs-sophosav-installer"
+url_installer: >
+  https://{{ mirror }}/segsupport/sophos/{{ sophos_installer }}-py3
+sophos_installer_bin: "/usr/sbin/{{ sophos_installer }}"
+sophos_installer_script_bin: "/usr/local/sbin/{{ sophos_installer }}"
+sophos_install_dir: "/opt/sophos-av"
+sophos_bin_dir: "{{ sophos_install_dir }}/bin"
+rms_ips:
+  dfw:
+    - 72.3.192.70
+    - 72.3.192.71
+    - 72.3.192.72
+    - 72.3.192.73
+  fra:
+    - 159.135.131.165
+    - 159.135.131.166
+  hkg:
+    - 119.9.80.85
+    - 119.9.80.86
+  iad:
+    - 69.20.31.134
+    - 69.20.31.135
+    - 69.20.31.136
+    - 69.20.31.137
+  lon:
+    - 89.234.28.37
+    - 89.234.28.38
+    - 89.234.28.39
+    - 89.234.28.40
+    - 89.234.28.41
+    - 89.234.28.42
+  ord:
+    - 184.106.8.198
+    - 184.106.8.199
+    - 184.106.8.200
+    - 184.106.8.201
+  syd:
+    - 119.9.146.245
+    - 119.9.146.246
+rms_ports:
+  - 8192
+  - 8194
+  - 80
+backup_file: "{{ sophos_install_dir }}/talpa/override/talpa_vfshook.options"
+tmp_dir: "/tmp"
+rack_dir: "~rack"
+supported_distros:
+  centos: 6
+  redhat: 6
+  oraclelinux: 7
+  ubuntu: 14
+os_dependencies:
+  RedHat:
+    6:
+      - compat-glibc
+      - compat-glibc-headers
+      - glibc-utils
+      - glibc.i686
+      - nss-softokn-freebl
+    7:
+      - compat-glibc
+      - compat-glibc-headers
+      - glibc-utils
+      - glibc.i686
+      - nss-softokn-freebl
+    8:
+      - glibc
+      - glibc-headers
+      - glibc-utils
+      - glibc.i686
+      - nss-softokn-freebl
+      - elfutils-libelf-devel
+      - kernel-devel
+  Debian:
+    16:
+      - python
+      - libc6:i386
+      - libncurses5:i386
+      - libstdc++6:i386
+    18:
+      - python
+      - libc6:i386
+      - libncurses5:i386
+      - libstdc++6:i386
+    20:
+      - python3
+sophos_deps: >-
+  {{
+    os_dependencies[ansible_os_family][ansible_distribution_major_version|int]
+  }}
+...

@@ -1,0 +1,12 @@
+---
+- name: Test rs_user
+  hosts: all
+  gather_facts: true
+  gather_subset: min
+  tasks:
+    - name: Remove rack user
+      include_role:
+        name: rs_user
+      vars:
+        remove: true
+...

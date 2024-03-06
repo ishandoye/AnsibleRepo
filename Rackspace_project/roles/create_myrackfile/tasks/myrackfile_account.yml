@@ -1,0 +1,10 @@
+---
+# Create File with No Permissions
+- name: Create a MyRackFile without an associated device
+  valkyrie_create:
+    account: "{{ account_number }}"
+    name: "{{ myrackfile_name|default(omit) }}"
+    content: "{{ myrackfile_content }}"
+    rackertoken: "{{ rackertoken }}"
+  register: myrackfile_results
+...

@@ -1,0 +1,101 @@
+---
+
+- name: Check if multi_mounts is provided
+  include_tasks: check_mounts.yml
+
+- name: Fail if sftp_user is not provided
+  fail:
+    msg: "The sftp_user variable has not been defined"
+  when: sftp_user is not defined
+
+- name: Create sftponly group
+  group:
+    name: "{{ sftp_group }}"
+    state: present
+
+- name: Create sftp user
+  user:
+    name: "{{ sftp_user }}"
+    createhome: no
+    home: "/home/chroot/{{ sftp_user }}"
+    append: yes
+    shell: "{{ sftp_shell }}"
+    groups: "{{ sftp_group }}"
+    state: present
+  register: user_created
+
+- name: Fail is user exists
+  fail:
+    msg: "The user {{ sftp_user }} already exists."
+  failed_when: user_created is not changed and force_user is not defined
+
+- name: Create password for {{ sftp_user }}
+  user:
+    name: "{{ sftp_user }}"
+    password: "{{ lookup('password', 'credentials/' + inventory_hostname + '/' + sftp_user + '/password.txt encrypt=md5_crypt length=14') }}"
+  register: password_created
+  when: (user_created is changed) or force_user is defined
+
+- name: Save password in a variable
+  set_fact:
+    pass_sftp: "{{ lookup('file', 'credentials/' + inventory_hostname + '/' + sftp_user + '/password.txt') }}"
+  when: (user_created is changed) or force_user is defined
+
+- name: Modify sftp subsystem
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: '^Subsystem(.*)sftp'
+    line: "Subsystem sftp internal-sftp"
+    state: present
+    backup: yes
+    validate: >
+      /usr/sbin/sshd -T -C
+      user=root -C
+      host=localhost -C
+      addr=localhost -f %s
+
+- name: Add sshd_config sftp config block
+  blockinfile:
+    dest: /etc/ssh/sshd_config
+    marker: '# {mark} sftponly block'
+    block: |
+      Match Group {{ sftp_group }}
+          ChrootDirectory %h
+          AllowTCPForwarding no
+          X11Forwarding no
+          ForceCommand internal-sftp
+    validate: >
+      /usr/sbin/sshd -T -C
+      user=root -C
+      host=localhost -C
+      addr=localhost -f %s
+
+- name: Reload SSH
+  service:
+    name: "{{ 'ssh' if ansible_os_family == 'Debian' else 'sshd' }}"
+    state: reloaded
+
+- name: Correct the chroot directory permissions
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+    owner: root
+    group: root
+  loop:
+    - "/home/chroot"
+    - "/home/chroot/{{ sftp_user }}"
+  when: user_created is changed
+
+- name: Create mount point(s)
+  include_tasks: mounts.yml
+  vars:
+    mount_path: "{{ item.real_mount }}"
+    mount_dir: "{{ item.bind_mount }}"
+  loop: "{{ all_mounts }}"
+  when: all_mounts | length > 0 and user_created is changed
+
+- name: User Creation Results
+  debug:
+    msg: "Password for {{ sftp_user }}@{{ inventory_hostname }} is {{ pass_sftp.split(' ')[0] }}"
+  when: (user_created is changed) or force_user is defined

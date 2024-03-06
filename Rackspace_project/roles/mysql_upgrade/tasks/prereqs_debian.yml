@@ -1,0 +1,21 @@
+---
+- name: Ensure rsync is installed
+  package:
+    name: rsync
+    update_cache: true
+
+- name: Install PV if upgrade_version is > 10.8
+  package:
+    name: pv
+    state: present
+  when: upgrade_version is version('10.8', '>')
+
+- name: Get MySQL info (Debian)
+  community.mysql.mysql_variables:
+    variable: "{{ item }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  with_items:
+    - datadir
+    - tmpdir
+  register: mysql_vars
+  tags: mysql_upgrade

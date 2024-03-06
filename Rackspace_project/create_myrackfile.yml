@@ -1,0 +1,10 @@
+---
+- hosts: localhost
+  gather_facts: false
+  become: false
+  vars:
+    rackertoken: "{{ lookup('rax_secret', 'rackertoken') }}"
+  tasks:
+  - include_role:
+      name: create_myrackfile
+...

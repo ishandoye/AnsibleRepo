@@ -1,0 +1,9 @@
+---
+- name: Pull installer and unarchive
+  unarchive:
+    src: "{{ nimbus_url }}"
+    dest: "~rack"
+    remote_src: true
+    extra_opts:
+      - --no-same-owner
+...

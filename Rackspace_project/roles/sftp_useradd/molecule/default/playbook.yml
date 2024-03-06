@@ -1,0 +1,8 @@
+---
+- name: Converge
+  hosts: all
+  vars:
+    sftp_user: molecule_user
+    real_mount: /var/www/vhosts/example.com
+  roles:
+    - role: sftp_useradd

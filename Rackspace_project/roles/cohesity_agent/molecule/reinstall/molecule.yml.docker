@@ -1,0 +1,110 @@
+---
+dependency:
+  enabled: true
+  name: shell
+  command: >-
+    cp -L ${MOLECULE_SCENARIO_DIRECTORY}/centos6.repo
+    ${MOLECULE_EPHEMERAL_DIRECTORY}
+
+driver:
+  name: docker
+
+lint: |
+  set -e
+  yamllint .
+
+platforms:
+  - name: molecule-el6
+    image: docker-remote.artifacts.rackspace.net/centos:6
+    dockerfile: el6_Dockerfile.j2
+    command: /sbin/init
+
+    # NB CentOS 7 uses cgroups v1. If your host OS is running cgroups v2 then
+    # you will need to add systemd.unified_cgroup_hierarchy=0 to your kernel
+    # boot options in order for systemd to work in the container
+  - name: molecule-el7
+    image: docker-remote.artifacts.rackspace.net/centos:7
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+
+  - name: molecule-el8
+    image: docker-remote.artifacts.rackspace.net/almalinux:8
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+
+  - name: molecule-el9
+    image: docker-remote.artifacts.rackspace.net/almalinux:9
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+
+  - name: molecule-u18
+    image: docker-remote.artifacts.rackspace.net/ubuntu:18.04
+    command: /lib/systemd/systemd
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+
+  - name: molecule-u20
+    image: docker-remote.artifacts.rackspace.net/ubuntu:20.04
+    command: /lib/systemd/systemd
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+
+  - name: molecule-u22
+    image: docker-remote.artifacts.rackspace.net/ubuntu:22.04
+    command: /lib/systemd/systemd
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+
+  - name: molecule-d10
+    image: docker-remote.artifacts.rackspace.net/debian:10
+    command: /lib/systemd/systemd
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+
+  - name: molecule-d11
+    image: docker-remote.artifacts.rackspace.net/debian:11
+    command: /lib/systemd/systemd
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+
+provisioner:
+  name: ansible
+  env:
+    # assumes role is being tested directly from SupportTools/playbooks
+    # this is generally needed when using custom modules from this repo
+    ANSIBLE_LIBRARY: ../../../../library
+    ANSIBLE_MODULE_UTILS: ../../../../module_utils
+    ANSIBLE_ROLES_PATH: ../../../../roles
+    # Set to true if `molecule --debug` is insufficient
+    ANSIBLE_DEBUG: false
+
+scenario:
+  test_sequence:
+    - dependency
+    - syntax
+    - destroy
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy
+...

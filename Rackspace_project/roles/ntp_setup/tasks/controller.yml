@@ -1,0 +1,28 @@
+---
+- name: Get exec node distribution
+  become: no
+  delegate_to: localhost
+  run_once: yes
+  setup:
+    filter: ansible_distribution
+    gather_subset: min
+
+- name: Get NTP IPs
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - files:
+        - "ntp_{{ ansible_distribution|lower }}.yml"
+        - "ntp_default.yml"
+
+- name: Validate NTP server FQDN and IP
+  fail:
+    msg: >-
+      Invalid NTP server FQDN [{{ rs_time_server_fqdn }}]
+      or IP [{{ rs_time_server_ip }}]
+  failed_when: >-
+      not (rs_time_server_ip | ipaddr) or
+      rs_time_server_fqdn is not search(fqdn_pattern)
+
+- name: Reset original facts
+  setup:
+...

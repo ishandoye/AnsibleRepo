@@ -1,0 +1,140 @@
+---
+- name: Prepare database servers
+  hosts: all
+  gather_facts: true
+  gather_subset:
+    - min
+  tasks:
+    - name: Update packages
+      yum:
+        name: '*'
+        state: latest
+    - name: Configure MariaDB server
+      block:
+        - name: Install MariaDB packages
+          package:
+            name:
+              - mariadb-server
+              - mariadb-test
+            state: present
+
+        - name: Enable MariaDB server
+          service:
+            name: mariadb
+            state: started
+            enabled: true
+
+        - name: Install MySQL-python
+          package:
+            name: MySQL-python
+            state: present
+          when: discovered_interpreter_python == "/usr/bin/python"
+
+        - name: Install MySQL-python
+          package:
+            name: python3-PyMySQL
+            state: present
+          when: discovered_interpreter_python != "/usr/bin/python"
+
+        - name: Ensure temporary password is reset if present
+          include: reset_temp_pass.yml
+
+        - name: Create test database
+          mysql_db:
+            name: world
+            state: present
+
+        - name: Populate test database schema
+          shell:
+            cmd: mysql world < /usr/share/mysql-test/include/world_schema.inc
+            creates: /var/lib/mysql/world/Country.frm
+
+        - name: Populate test database data
+          shell:
+            cmd: mysql world < /usr/share/mysql-test/include/world.inc
+
+      when: ("mariadb" in inventory_hostname)
+
+    - name: Install MySQL Community Edition server 8.0
+      block:
+        - name: Import the MySQL RPM 2022 key
+          rpm_key:
+            state: present
+            key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+
+        - name: Import the MySQL RPM key
+          rpm_key:
+            state: present
+            key: https://repo.mysql.com/RPM-GPG-KEY-mysql
+
+        - name: Install MySQL Community Edition repo
+          yum:
+            name: https://dev.mysql.com/get/mysql80-community-release-el{{ ansible_distribution_major_version }}-4.noarch.rpm
+            state: present
+
+        - name: Disable MySQL AppStream module
+          command: dnf module -y disable mysql
+
+        - name: Install MySQL Community Edition
+          package:
+            name: mysql-community-server
+            state: present
+
+        - name: Start and enable MySQL server
+          service:
+            name: mysqld
+            enabled: true
+            state: started
+
+        - name: Ensure temporary password is reset
+          include: reset_temp_pass.yml
+
+        - name: Install MySQL-python
+          package:
+            name: MySQL-python
+            state: present
+          when: discovered_interpreter_python == "/usr/bin/python"
+
+        - name: Install MySQL-python
+          package:
+            name: python3-PyMySQL
+            state: present
+          when: discovered_interpreter_python != "/usr/bin/python"
+      when: ("mysql" in inventory_hostname)
+
+    - name: Install Percona 8.0
+      block:
+        - name: Import the Percona packaging key
+          rpm_key:
+            state: present
+            key: https://repo.percona.com/yum/PERCONA-PACKAGING-KEY
+
+        - name: Import the Percona RPM GPG key
+          rpm_key:
+            state: present
+            key: https://repo.percona.com/yum/RPM-GPG-KEY-Percona
+
+        - name: Install Percona repo
+          yum:
+            name: https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+            state: present
+
+        - name: Run Percona release setup command
+          command: percona-release setup ps80 -y
+
+        - name: Install Percona 8.0
+          yum:
+            name: percona-server-server
+            state: present
+
+        - name: Start and enable Percona server
+          service:
+            name: mysql
+            enabled: true
+            state: started
+
+        - name: Ensure temporary password is reset
+          include: reset_temp_pass.yml
+
+      when: ("percona" in inventory_hostname and ansible_os_family|lower == "redhat")
+...

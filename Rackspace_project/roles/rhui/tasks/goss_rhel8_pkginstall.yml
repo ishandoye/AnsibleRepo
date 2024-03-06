@@ -1,0 +1,9 @@
+---
+# This is a stop gap playbook for a large customer. This can be expanded in the future to be more verbose, but we needed a solution now
+- name: Install Python3
+  dnf:
+    name:
+      - python3
+    state: present
+  become: true
+...

@@ -1,0 +1,8 @@
+---
+- name: check/update robot.cfg for cloned vms
+  become: yes
+  hosts: all
+  tasks:
+  - include_role:
+      name: nimbus_fix_clonedvm_robot_cfg
+...

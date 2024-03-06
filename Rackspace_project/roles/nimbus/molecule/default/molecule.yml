@@ -1,0 +1,60 @@
+---
+dependency:
+  enabled: false
+  name: galaxy
+
+driver:
+  name: docker
+
+lint: |
+  set -e
+  yamllint
+
+platforms:
+  - name: molecule-nimbus-c6
+    image: docker.artifacts.rackspace.net/centos:6
+    capabilities:
+      - SYS_ADMIN
+
+  - name: molecule-nimbus-c7
+    image: docker.artifacts.rackspace.net/centos:7
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+     - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule-nimbus-u16
+    image: docker.artifacts.rackspace.net/ubuntu:16.04
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule-nimbus-u18
+    image: docker.artifacts.rackspace.net/ubuntu:18.04
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+provisioner:
+  name: ansible
+  playbooks:
+    converge: "${MOLECULE_PLAYBOOK:-install.yml}"
+
+scenario:
+  name: default
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - destroy
+
+verifier:
+  enabled: false

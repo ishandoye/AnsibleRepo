@@ -1,0 +1,63 @@
+---
+holland_conf_files:
+  - /etc/holland/holland.conf
+  - /etc/holland/backupsets/default.conf
+pkg_verify_cmd:
+  redhat: rpm -V
+  debian: dpkg -V
+pkg_conf_regex: '.* c (\/etc\/holland\/.*\.conf)'
+mirror_base: https://mirror.rackspace.com
+rax_mirror_base: https://rax.mirror.rackspace.com
+obs_base_url: "{{  mirror_base }}/opensuse/repositories"
+# ex1: home:/holland-backup/Debian_10
+# ex2: home:/holland-backup/xUbuntu_20.04
+obs_path: >-
+  {{
+    "{}/{}{}_{}".format(
+      "home:/holland-backup",
+      (ansible_distribution == "Ubuntu") | ternary("x", ""),
+      ansible_distribution,
+      ansible_distribution_version
+    )
+  }}
+rax_deb_keys:
+  buster: "rackspace-{{ ansible_distribution_release }}-keyring.gpg"
+  bullseye: "rackspace-{{ ansible_distribution_release }}-keyring.gpg"
+  bionic: "rackspace-ubuntu-archive-keyring.gpg"
+  focal: "rackspace-ubuntu-focal-key.gpg"
+  jammy: "rackspace-ubuntu-jammy-keyring.gpg"
+deb_repos:
+  - name: holland-obs
+    filter_re: "{{ obs_path | regex_escape }}"
+    url: "{{ obs_base_url }}/{{ obs_path }}"
+    key_url: "{{ obs_base_url }}/{{ obs_path }}/Release.key"
+    key_file: holland-obs.asc
+    section: ./
+  - name: rax.mirror
+    # This looks mad - but it replaces 'http:' or 'https:' with 'https?:', so we
+    # we match either protocol later
+    filter_re: >-
+      {{ rax_mirror_base | regex_escape | regex_replace('https?:', 'https?:') }}
+    url: "{{ rax_mirror_base }}/{{ ansible_distribution | lower }}"
+    key_url: >-
+      {{ rax_mirror_base }}/{{ ansible_distribution | lower }}/{{
+        rax_deb_keys[ansible_distribution_release] }}
+    key_file: >-
+        {{
+          (ansible_distribution_release == "jammy") |
+          ternary("rax.mirror.gpg", "rax.mirror.asc")
+        }}
+    section: "{{ ansible_distribution_release }} main"
+rax_release_rpm: >-
+  rax-release-rackspace-latest-{{
+    ansible_distribution_major_version
+  }}.noarch.rpm
+yum_config_mgr_cmd:
+  6: /usr/bin/yum-config-manager
+  7: /usr/bin/yum-config-manager
+  8: /usr/bin/dnf config-manager --dump *
+  9: /usr/bin/dnf config-manager --dump *
+uninstall_packages:
+  - rs-holland-config
+install_packages:
+  - rs-holland-cohesity

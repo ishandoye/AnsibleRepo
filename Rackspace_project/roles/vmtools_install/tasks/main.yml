@@ -1,0 +1,24 @@
+---
+- name: Load custom variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+        - "{{ ansible_distribution|lower }}.yml"
+        - "{{ ansible_os_family|lower }}.yml"
+
+- name: Install required vmtools package
+  package:
+    name: open-vm-tools
+    state: latest
+    update_cache: "yes"
+  when: (valid_os|default(False)|bool)
+
+- name: Start and enable vmtools service
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: "yes"
+  with_items:
+    - "{{ service_name }}"
+  when: (valid_os|default(False)|bool)
+...

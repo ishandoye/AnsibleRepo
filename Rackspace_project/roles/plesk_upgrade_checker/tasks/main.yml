@@ -1,0 +1,6 @@
+---
+
+- include_tasks: basic_checks.yml
+- include_tasks: known_showstoppers.yml
+- include_tasks: upgrade_checks.yml
+- include_tasks: remaining_checks.yml

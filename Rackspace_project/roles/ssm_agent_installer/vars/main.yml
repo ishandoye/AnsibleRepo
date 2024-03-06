@@ -1,0 +1,8 @@
+---
+# vars file for ssm_agent_installer
+script_root: https://add-ons.manage.rackspace.com/bootstrap
+token_root: https://add-ons.api.manage.rackspace.com/v1.0/agent/tokens
+device_type: "{{ rs_platform_vendor | lower if rs_platform_vendor == 'VMWare' else 'dedicated' }}"
+script_filename: ssm_install.sh
+ssm_install_script: "{{ script_root }}/{{ device_type }}/{{ script_filename }}"
+token_dir: /var/lib/rackspace/rackspace_agent

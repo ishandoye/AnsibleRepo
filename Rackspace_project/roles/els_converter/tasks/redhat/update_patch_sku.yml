@@ -1,0 +1,37 @@
+---
+- name: Get current patching SKU
+  uri:
+    url: "https://ws.core.rackspace.com/ctkapi/query/"
+    method: POST
+    body: "[{'class': 'Computer.Computer',
+      'load_arg': '{{ rs_server }}',
+      'method': 'getSKUsAndLabels'}]"
+    body_format: json
+    headers:
+      X-Auth-Token: "{{ lookup('rax_secret', 'rackertoken') }}"
+  become: false
+  delegate_to: 127.0.0.1
+  register: json_response
+
+- name: Get query results
+  set_fact:
+    query_result: "{{ json_response | json_query('json[0].result') }}"
+
+- name: Check if RHUI SKU already set
+  set_fact:
+    patch_sku_is_rhui: "{{ 'true' if '111612' in query_result | string else 'false' }}"
+
+- name: Change patching SKU to RHUI
+  uri:
+    url: "https://ws.core.rackspace.com/ctkapi/query/"
+    method: POST
+    body: "[{'class': 'Computer.Computer',
+      'load_arg': '{{ rs_server }}',
+      'method': 'addReplacePart',
+      'args': [111612, 1390]}]"  # 111612 is the RHUI SKU and 1390 is the Patch Management System SKUNIT
+    body_format: json
+    headers:
+      X-Auth-Token: "{{ lookup('rax_secret', 'rackertoken') }}"
+  become: false
+  delegate_to: 127.0.0.1
+  when: not patch_sku_is_rhui

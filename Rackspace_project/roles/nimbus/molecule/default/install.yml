@@ -1,0 +1,17 @@
+---
+- name: Test installing Nimbus
+  hosts: all
+  tasks:
+    - name: Include dummy Rackspace info
+      include_role:
+        name: dummy_raxfacts
+
+    - name: Push installation through control host
+      set_fact:
+        push: true
+      when: "lookup('env', 'PUSH') != ''"
+
+    - name: Execute Nimbus role
+      include_role:
+        name: nimbus
+...

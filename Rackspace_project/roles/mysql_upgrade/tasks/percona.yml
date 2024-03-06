@@ -1,0 +1,39 @@
+---
+- name: Save original running MySQL version
+  set_fact:
+    original_mysql_version: "{{ mysql.version.full }}"
+
+- name: Configure Percona repo for Red Hat
+  block:
+  - name: Import the Percona packaging key
+    rpm_key:
+      state: present
+      key: https://repo.percona.com/yum/PERCONA-PACKAGING-KEY
+
+  - name: Import the Percona RPM GPG key
+    rpm_key:
+      state: present
+      key: https://repo.percona.com/yum/RPM-GPG-KEY-Percona
+
+  - name: Install Percona repo
+    yum:
+      name: https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+      state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Configure Percona repo for Ubuntu
+  block:
+    - name: Install percona-release deb
+      apt:
+        deb: https://repo.percona.com/apt/percona-release_latest.{{ ansible_distribution_release }}_all.deb
+  when: ansible_distribution == "Ubuntu"
+
+- name: Upgrade Percona in stages
+  include_tasks: percona_staged_upgrade.yml
+  loop:
+    - "5.5"
+    - "5.6"
+    - "5.7"
+    - "8.0"
+  loop_control:
+    loop_var: outer_item

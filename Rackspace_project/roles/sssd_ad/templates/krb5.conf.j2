@@ -1,0 +1,34 @@
+{% if ansible_os_family == 'RedHat' and ansible_distribution_major_version|int >= 8 %}
+# To opt out of the system crypto-policies configuration of krb5, remove the
+# symlink at /etc/krb5.conf.d/crypto-policies which will not be recreated.
+includedir /etc/krb5.conf.d/
+
+{% endif %}
+[logging]
+ default = FILE:/var/log/krb5libs.log
+
+[libdefaults]
+ default_realm = {{ ad_domain|upper }}
+ dns_lookup_realm = true
+ dns_lookup_kdc = true
+ ticket_lifetime = 24h
+ renew_lifetime = 7d
+ rdns = false
+ forwardable = yes
+
+[domain_realm]
+ .{{ ad_domain|lower }} = {{ ad_domain|upper }}
+ {{ ad_domain|lower }} = {{ ad_domain|upper }}
+{% if type|lower in rax_types %}
+ .intensive.int = INTENSIVE.INT
+ intensive.int = INTENSIVE.INT
+{% endif %}
+{% if DOMAIN_CONTROLLERS is defined and DOMAIN_CONTROLLERS %}
+
+[realms]
+  {{ ad_domain|upper }} = {
+    {% for item in DOMAIN_CONTROLLERS.split(',') %}
+    kdc = {{ item|trim }}
+    {% endfor %}
+  }
+{% endif %}

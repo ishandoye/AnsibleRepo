@@ -1,0 +1,13 @@
+tinker panic 0
+restrict {{ rs_time_server_ip }} mask 255.255.255.255 nomodify
+restrict default kod nomodify notrap nopeer noquery
+restrict -6 default kod nomodify notrap nopeer noquery
+restrict 127.0.0.1
+restrict -6 ::1
+server 0.rhel.pool.ntp.org
+server 1.rhel.pool.ntp.org
+server 2.rhel.pool.ntp.org
+server {{ rs_time_server_fqdn }} prefer
+driftfile /var/lib/ntp/drift
+keys /etc/ntp/keys
+includefile /etc/ntp/crypto/pw

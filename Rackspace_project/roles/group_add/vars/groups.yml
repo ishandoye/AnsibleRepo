@@ -1,0 +1,35 @@
+---
+
+# Replace the following as required for deploying new groups, with a new list item (dict) per group
+#
+# Variables required:
+#  groupname                : desired group name
+#
+# Optional varialbles:
+#   gid                     : desired gid group number
+#
+# Additional required variables if group is to be among sudoers
+#   issudo                  : boolean
+#   issudoseparate          : boolean to define if sudo definintion is to be written in /etc/sudoers
+#
+# Additional optional variables if group is to be among sudoers
+#   sudo_definition         : default to 'ALL=(ALL) ALL'
+#
+# All examples below are working examples.
+
+allgroups:
+  #- groupname: 'mygroup1'
+  #  issudo: False
+  #  gid: 2000
+  #- groupname: 'mygroup2'
+  #  issudo: True
+  #  sudo_definition: "ALL=(ALL) ALL"
+  #- groupname: 'mygroup3'
+  #  issudoseparate: True
+  #  gid: 3000
+  #- groupname: 'mygroup4'
+  #  issudo: True
+  #  issudoseparate: False
+  #  sudo_definition: "ALL=(ALL) NOPASSWD: ALL"
+  #- groupname: 'mygroup5'
+...

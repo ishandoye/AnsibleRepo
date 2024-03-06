@@ -1,0 +1,24 @@
+# This playbook disables a filesystem monitored by Nimbus cdm probe. It will prompt the user for the
+# filesystem's mount point to be disabled and a ticket number where a backup of cdm.cfg will be stored.
+# To avoid prompts during execution, pass the following variables through --extra-vars:
+#   mount_point
+#   ticket
+
+- hosts: all
+  become: true
+  vars_prompt:
+    - name: "ticket"
+      prompt: "Ticket number which will be used to create temporary directory under /home/rack (Example: 123456-12345)"
+      private: no
+    - name: "mount_point"
+      prompt: "Mount point of the filesystem which monitoring will be disabled (Example: /var/log)"
+      private: no
+    - name: "disable_check"
+      prompt: "Should the check be disabled altogether? (ie not monitoring mount point) [no/yes]"
+      private: no
+      default: False
+
+  tasks:
+  - include_role:
+      name: nimbus_disable_fs_monitor
+...

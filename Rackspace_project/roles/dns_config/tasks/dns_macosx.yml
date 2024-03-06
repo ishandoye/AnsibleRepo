@@ -1,0 +1,26 @@
+---
+- name: Get primary and secondary DNS IP via dig command
+  become: no
+  delegate_to: localhost
+  command: dig +noall +short {{ dns_fqdn }}
+  register: dns_via_dig
+  check_mode: no
+  changed_when: false
+  loop:
+    - "{{ dns_primary_fqdn }}"
+    - "{{ dns_secondary_fqdn }}"
+  loop_control:
+    loop_var: dns_fqdn
+  failed_when: >-
+    (not (dns_via_dig.stdout_lines[-1]|ipaddr)
+      if 'stdout_lines' in dns_via_dig
+      and dns_via_dig.stdout_lines|length > 0 else True)
+    and dns_via_dig.rc == 0
+
+- name: Extract IP addresses
+  set_fact:
+    dns_ips: "{{ dns_ips |default([]) + [dns_dig_ip.stdout_lines[-1]] }}"
+  loop: "{{ dns_via_dig.results }}"
+  loop_control:
+    loop_var: dns_dig_ip
+...

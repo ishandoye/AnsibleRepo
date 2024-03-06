@@ -1,0 +1,10 @@
+---
+req_groups:
+  - name: users
+    gid: 100
+  - name: sudo
+    gid: 27
+group_list:
+  - users
+  - sudo
+...

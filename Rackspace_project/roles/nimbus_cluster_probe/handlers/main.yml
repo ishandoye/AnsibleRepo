@@ -1,0 +1,8 @@
+---
+
+- name: wait for cluster probe to pick up new cdm/process cfg
+  pause:
+    seconds: 10
+
+- name: restart nimbus
+  shell: /etc/init.d/nimbus restart

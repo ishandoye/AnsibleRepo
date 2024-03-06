@@ -1,0 +1,30 @@
+---
+php_packages:
+  - php
+  - mod_php74
+
+php_fpm_packages:
+  - php-fpm
+  - php74-fpm
+
+php_toplevel_packages: "{{ php_packages + php_fpm_packages }}"
+
+deprecated_php_packages:
+  - mod_php70u
+  - mod_php71u
+  - mod_php72u
+  - mod_php73
+
+deprecated_fpm_packages:
+  - php70u-fpm
+  - php71u-fpm
+  - php72u-fpm
+  - php73-fpm
+
+opcache_package_name:
+  php: php-pecl-zendopcache.x86_64
+  php-fpm: php-pecl-zendopcache.x86_64
+  mod_php73u: php73-opcache.x86_64
+  php703-fpm: php73-opcache.x86_64
+  mod_php74u: php74-opcache.x86_64
+  php74u-fpm: php74-opcache.x86_64

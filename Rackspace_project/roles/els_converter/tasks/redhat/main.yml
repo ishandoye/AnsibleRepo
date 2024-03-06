@@ -1,0 +1,7 @@
+---
+- include_tasks: update_patch_sku.yml
+- include_tasks: disable_nimbus_process_probe.yml
+- include_tasks: upload_rhui.yml
+- include_tasks: remove_sat.yml
+- include_tasks: install_rhui.yml
+- include_tasks: install_repos.yml

@@ -1,0 +1,68 @@
+  - name: Set mysql configuration - relay-log
+    lineinfile:
+        path: /etc/my.cnf
+        line: "relay-log={{ slave_relay_log }}"
+        insertafter: "^.mysqld.$"
+        regexp: "^[#]?relay-log="
+    notify: Restart mysqld
+
+  - name: Set mysql configuration - relay-log-space-limit
+    lineinfile:
+        path: /etc/my.cnf
+        line: "relay-log-space-limit={{ slave_relay_log_space_limit }}"
+        insertafter: "^.mysqld.$"
+        regexp: "^[#]?relay-log-space-limit="
+    notify: Restart mysqld
+
+  - name: Set mysql configuration - read-only
+    lineinfile:
+        path: /etc/my.cnf
+        line: "read-only=1"
+        insertafter: "^.mysqld.$"
+        regexp: "^[#]?read-only="
+    notify: Restart mysqld
+
+  - name: Set mysql configuration - server-id
+    lineinfile:
+        path: /etc/my.cnf
+        line: "server-id={{ rs_server }}"
+        insertafter: "^.mysqld.$"
+        regexp: "^[#]?server-id="
+    notify: Restart mysqld
+
+  - meta: flush_handlers
+
+  - name: Upload MySQL dump
+    copy:
+        src: /tmp/replication-{{ master }}.sql.gz
+        dest: /home/rack/replication.sql.gz
+
+  - name: Stop slave
+    mysql_replication:
+        mode: stopslave
+
+  - name: Reset slave
+    mysql_replication:
+        mode: resetslaveall
+
+  - name: Configure slave
+    mysql_replication:
+        mode: changemaster
+        master_host: "{{ hostvars[master]['ansible_facts']['default_ipv4']['address'] }}"
+        master_user: "replicant"
+        master_password: "{{ replicant_password }}"
+
+  - name: Import MySQL dump
+    shell: "zcat /home/rack/replication.sql.gz | mysql"
+
+  - name: Flush privileges
+    command: /usr/bin/mysql -e "FLUSH PRIVILEGES"
+
+  - name: Upload .my.cnf
+    copy:
+        src: /tmp/.my.cnf
+        dest: /root/.my.cnf
+
+  - name: Start slave
+    mysql_replication:
+        mode: startslave

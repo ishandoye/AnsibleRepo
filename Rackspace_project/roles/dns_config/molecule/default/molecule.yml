@@ -1,0 +1,61 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+lint:
+  name: yamllint
+platforms:
+  - name: centos6
+    image: centos:6
+    groups: [ dedicated, stable ]
+
+  - name: centos7
+    image: centos:7
+    groups: [ dedicated, stable, test ]
+
+  - name: ubuntu1404
+    image: ubuntu:trusty
+    groups: [ dedicated, stable ]
+
+  - name: ubuntu1604
+    image: ubuntu:xenial
+    groups: [ dedicated, stable ]
+
+  - name: ubuntu1804
+    image: ubuntu:bionic
+    groups: [ dedicated, stable ]
+
+  - name: ubuntu1804-cloud
+    image: ubuntu:bionic
+    groups: [ cloud ]
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_FORKS: "7"
+  inventory:
+    group_vars:
+      cloud:
+        is_cloud: "True"
+  lint:
+    name: ansible-lint
+
+scenario:
+  name: default
+  test_sequence:
+#    - lint
+    - destroy
+    - dependency
+    - syntax
+    - create
+    - prepare
+    - converge
+#    - idempotence
+    - side_effect
+#    - verify
+    - destroy
+verifier:
+  name: testinfra
+  lint:
+    name: flake8

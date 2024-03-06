@@ -1,0 +1,23 @@
+---
+unsupported_plesk_versions:
+  - "8"
+  - "9"
+  - "10"
+  - "11"
+plesk_skus:
+  - "106848" # Plesk 11.x - 100 Domains
+  - "106849" # Plesk 11.x - 100 Domains with All Modules
+  - "106850" # Plesk 11.x - 100 Domains with All Modules plus Dr. Web AV
+  - "106851" # Plesk 11.x - 100 Domains plus Dr. Web AV
+  - "106852" # Plesk 11.x - Unlimited Domains
+  - "106853" # Plesk 11.x - Unlimited Domains with All Modules
+  - "106854" # Plesk 11.x - Unlimited Domains with All Modules plus Dr. Web AV
+  - "106855" # Plesk 11.x - Unlimited Domains plus Dr. Web AV
+  - "109069" # Plesk (Rackspace Owned License) - 100 Domains
+  - "109070" # Plesk (Rackspace Owned License) - 100 Domains with All Modules
+  - "109071" # Plesk (Rackspace Owned License) - 100 Domains with All Modules plus Dr.Web AV
+  - "109072" # Plesk (Rackspace Owned License) - Unlimited Domains
+  - "109073" # Plesk (Rackspace Owned License) - Unlimited Domains with All Modules
+  - "109074" # Plesk (Rackspace Owned License) - Unlimited Domains with All Modules plus Dr.Web AV
+  - "110804" # Plesk Web Host Edition
+  - "107369" # Plesk - Customer Provided License - RS Supported

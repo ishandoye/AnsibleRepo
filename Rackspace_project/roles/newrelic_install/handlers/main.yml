@@ -1,0 +1,8 @@
+---
+- name: Enable newrelic
+  service: name=newrelic-infra enabled=yes
+
+- name: Restart newrelic
+  service:
+    name: newrelic-infra
+    state: restarted

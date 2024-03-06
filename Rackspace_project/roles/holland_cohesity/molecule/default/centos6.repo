@@ -1,0 +1,28 @@
+[centos-vault-6-os]
+name = CentOS Vault for EL6 - OS
+baseurl = https://mirror.rackspace.com/centos-vault/6.10/os/$basearch/
+enabled = 1
+gpgcheck = 1
+gpgkey = https://mirror.rackspace.com/centos-vault/RPM-GPG-KEY-CentOS-6
+
+[centos-vault-6-updates]
+name = CentOS Vault for EL6 - Updates
+baseurl = https://mirror.rackspace.com/centos-vault/6.10/updates/$basearch/
+enabled = 1
+gpgcheck = 1
+gpgkey = https://mirror.rackspace.com/centos-vault/RPM-GPG-KEY-CentOS-6
+
+[centos-vault-6-extras]
+name = CentOS Vault for EL6 - Extras
+baseurl = https://mirror.rackspace.com/centos-vault/6.10/extras/$basearch/
+enabled = 0
+gpgcheck = 1
+gpgkey = https://mirror.rackspace.com/centos-vault/RPM-GPG-KEY-CentOS-6
+
+[epel-vault-6]
+name = EPEL Vault for EL6
+baseurl = https://archives.fedoraproject.org/pub/archive/epel/6/$basearch/
+enabled = 1
+gpgcheck = 1
+#gpgkey = https://archives.fedoraproject.org/pub/archive/epel/RPM-GPG-KEY-EPEL-6
+gpgkey = https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-6

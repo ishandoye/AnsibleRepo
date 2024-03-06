@@ -1,0 +1,181 @@
+---
+# Register with Rackspace RHUI
+
+# Check if RPMs are installed to avoid unnecessary API call.
+- name: "Check if main RPMs are already installed"
+  shell:
+    cmd: "rpm -q --queryformat '%{NVRA}\n' -a | egrep '*rackspace-rhui-client*'"
+    # Use "rpm" because "package" does not support "list" for checking installed packages.
+    warn: false
+  ignore_errors: true
+  failed_when: false
+  changed_when: false
+  register: check_RHUI_RPMs_installed
+
+- name: "Try to update existing RHUI RPMs to latest"
+  when: check_RHUI_RPMs_installed.rc == 0
+  package:
+    name: "rackspace-rhui-client"
+    state: present
+  ignore_errors: true
+  failed_when: false
+  register: try_RHUI_RPM_update
+
+- name: "Using Rackspace RHUI Patch Management"
+  when: (check_RHUI_RPMs_installed.rc == 0) and (try_RHUI_RPM_update is success)
+  debug:
+    msg: "INFO"
+  tags: print_action
+
+- name: "Install RHUI RPMs"
+  when: (check_RHUI_RPMs_installed.rc != 0) or (try_RHUI_RPM_update is not success)
+  block:
+    - name: "RHUI facts"
+      set_fact:
+        host: "https://stepladder.rax.io"
+        endpoint: "/api/repo_activation/catalyst/{{ core.json.core_device_number }}"
+        local_temp_dir: "/tmp"
+
+    - name: "Get Identity token from ACE"
+      include_tasks: get_auth_token.yml
+
+    # This should return one of the following RPMs:
+    #     rackspace-rhui-client-latest-8.noarch.rpm
+    #     rackspace-rhui-client-ospc-latest-8.noarch.rpm
+    #     rackspace-rhui-client-resilientstorage-latest-8.noarch.rpm
+    - name: "Get RPMs from RHUI API"
+      retries: 3
+      delay: 10
+      until: rhui_api_output.json is defined and rhui_api_output.json.get("activation_links")
+      uri:
+        headers:
+          X-Auth-Token: "{{ Identity_token }}"
+        url: "{{ host }}{{ endpoint }}"
+        return_content: "yes"
+      register: rhui_api_output
+      delegate_to: localhost
+      become: false
+      tags: print_action
+
+    - name: "Parse RHUI Payload"
+      # "rhui_api_output": {
+      #    ...
+      #    "json": {
+      #      "activation_links": [
+      #      {
+      #        "download_url": "https://iad.activation.lp.rackspace.com/v1/download/8c580037-e3ba-49eb-a7d3-b77838920206",
+      #        "expiration": "2020-07-24T18:30:09.98064738Z",
+      #        "file_name": "oraclelinux-release-rackspace-latest-8.noarch.rpm",
+      #        "obfuscated_name": "8c580037-e3ba-49eb-a7d3-b77838920206"
+      #      }
+      #      ],
+      #      "device_number": 695363
+      #    },
+      #    ...
+      set_fact:
+        rhui_rpm: "{{ rhui_api_output.json | json_query('activation_links[*]') }}"
+
+    - name: "Download RPM locally"
+      with_items: "{{ rhui_rpm }}"
+      delegate_to: localhost
+      get_url:
+        url: "{{ item.download_url }}"
+        dest: "{{ local_temp_dir }}/{{ item.file_name }}"
+      become: false
+
+    - name: "Create directory for upload"
+      file:
+        path: "{{ adc_ansible_dir }}"
+        state: directory
+        mode: 0755
+
+    - name: "Upload RPM to the device"
+      with_items: "{{ rhui_rpm }}"
+      copy:
+        src: "{{ local_temp_dir }}/{{ item.file_name }}"
+        dest: "{{ adc_ansible_dir }}/{{ item.obfuscated_name }}.rpm"
+        mode: 0664
+        follow: true
+
+    - name: "Install RPMs from RHUI"
+      with_items: "{{ rhui_rpm }}"
+      package:
+        name: "{{ adc_ansible_dir }}/{{ item.obfuscated_name }}.rpm"
+        state: present
+        disable_gpg_check: true
+      tags: print_action
+
+    - name: "Remove uploaded RPM from device"
+      with_items: "{{ rhui_rpm }}"
+      file:
+        path: "{{ adc_ansible_dir }}/{{ item.obfuscated_name }}.rpm"
+        state: "absent"
+
+    - name: Check for subscription-manager plugin
+      command:
+        cmd: rpm -q subscription-manager
+        warn: false
+      failed_when: false
+      register: rhsm_rslt
+
+    - name: Ensure subscription-manager stays disabled
+      when: rhsm_rslt.rc|int == 0
+      block:
+        - name: Disable auto-enablement of subscription-manager plugin
+          command:
+            cmd: subscription-manager config --rhsm.auto_enable_yum_plugins=0
+
+        - name: Disable subscription-manager plugin
+          ini_file:
+            create: false
+            path: /etc/yum/pluginconf.d/subscription-manager.conf
+            section: main
+            option: enabled
+            value: "0"
+            state: present
+
+- name: "Configure EUS - Locked Point Release"
+  when: "adc_core.json.values() | select('search', 'Locked Point Release') | list | count > 0"
+  block:
+    - name: "Get Locked Point Release description"
+      set_fact:
+        locked_point_release: "{{ adc_core.json.values() | select('search', 'Locked Point Release') | list }}"
+
+    - name: "Get version from Locked Point Release description"
+      # Extract 8.1 from:
+      #     "112346": "Point  Release RHEL 8.1 EUS - Locked Point Release "
+      set_fact:
+        point_release: '{{ locked_point_release | regex_replace(".*RHEL\s+([0-9]+\.[0-9]+)\s+EUS.*Locked Point Release.*", "\1") }}'
+
+    - name: "Assert we found a Locked Point Release version number"
+      assert:
+        that: (point_release|float > 0)
+        success_msg: "Found '{{ point_release }}'"
+        fail_msg: "Did not find EUS - Locked Point Release version number N.N in '{{ locked_point_release }}'"
+
+    - name: "Set EUS - Locked Point Release version {{ point_release }} in /etc/yum/vars/releasever"
+      copy:
+        content: "{{ point_release }}\n"
+        dest: "/etc/yum/vars/releasever"
+        mode: 0664
+      tags: print_action
+
+- name: "Remove EUS - Locked Point Release file /etc/yum/vars/releasever"
+  when: "adc_core.json.values() | select('search', 'Locked Point Release') | list | count <= 0"
+  file:
+    path: "/etc/yum/vars/releasever"
+    state: absent
+
+- name: "Install/update RAX repo"
+  package:
+    name: "https://rax.mirror.rackspace.com/release/rax-release-rackspace-latest-{{ ansible_distribution_major_version }}.noarch.rpm"
+    disable_gpg_check: true
+    # Deliberately using "latest" here to force an update if one is available
+    state: latest
+
+- name: GOSS Post RHUI Package Install
+  include_tasks: goss_rhel8_pkginstall.yml
+  when:
+    - "'Virtual Machine for RPC-V' in adc_core.json.core_device_platform_model"
+    - "'RedHat' in ansible_distribution"
+    - "'8' in ansible_distribution_major_version"

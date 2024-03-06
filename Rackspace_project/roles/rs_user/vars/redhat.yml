@@ -1,0 +1,10 @@
+---
+req_groups:
+  - name: users
+    gid: 100
+  - name: wheel
+    gid: 10
+group_list:
+  - users
+  - wheel
+...

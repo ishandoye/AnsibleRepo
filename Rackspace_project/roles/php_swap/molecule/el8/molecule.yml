@@ -1,0 +1,62 @@
+---
+driver:
+  name: docker
+
+lint: |
+  set -e
+  yamllint .
+
+platforms:
+  - name: almalinux
+    image: almalinux:8
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    network: default
+
+  - name: rockylinux
+    image: rockylinux:8
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    network: default
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      display_skipped_hosts: false
+  log: true
+  env:
+    ANSIBLE_ACTION_PLUGINS: "${MOLECULE_PROJECT_DIRECTORY}/../../action_plugins"
+    ANSIBLE_MODULE_UTILS: "${MOLECULE_PROJECT_DIRECTORY}/../../module_utils"
+    ANSIBLE_LOOKUP_PLUGINS: "${MOLECULE_PROJECT_DIRECTORY}/../../lookup_plugins"
+    ANSIBLE_LIBRARY: "${MOLECULE_PROJECT_DIRECTORY}/../../library"
+    ANSIBLE_CALLBACK_PLUGINS: "${MOLECULE_PROJECT_DIRECTORY}/../../callback_plugins"
+
+scenario:
+  name: el8
+  test_sequence:
+    - syntax
+    - destroy
+    - create
+    - prepare
+    - converge
+    - side_effect
+    - verify
+    - destroy
+
+verifier:
+  name: ansible
+  enabled: true
+...

@@ -1,0 +1,32 @@
+---
+- name: Output pear warning message
+  debug:
+    msg: >
+      WARNING - {{ pear_package_name[installed_php] }} package found!
+      This will be removed automatically with --nodeps before the actual swap due to know compatibility issues with yum-plugin-replace and certain modules.
+  when: pear_package.rc == 0
+
+- name: Removing pear with -nodeps
+  command: rpm -e --nodeps {{ pear_package_name[installed_php] }}
+  when: pear_package.stdout|bool
+  args:
+    warn: false
+
+- name: Moving /var/lib/pear to /var/lib/pear.phpswap
+  shell: if $(mv -f /var/lib/pear /var/lib/pear.phpswap > /dev/null 2>&1); then echo 0; fi
+  when: pear_package.stdout|bool
+  args:
+    warn: false
+
+- name: Replacing PHP packages
+  command: yum --disableexcludes=all replace {{ installed_php }} --replace-with={{ replace_with }} -y
+  args:
+    warn: false
+  register: yum_replace_cmd
+  changed_when: yum_replace_cmd.rc == 0
+
+- name: Transform version-specific PHP packages for EL7 to target version for post-install
+  set_fact:
+    php_packages: "{{ php_packages | difference([item]) | union([item|regex_replace('php([0-9][0-9])?(.*)', replace_short_name + '\\2')]) }}"
+  when: item|regex_search(installed_short_name)
+  loop: "{{ php_packages }}"

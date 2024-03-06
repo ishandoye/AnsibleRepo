@@ -1,0 +1,96 @@
+---
+- name: End if SSM agent is already installed
+  block:
+    - name: Debug if SSM agent is installed
+      debug:
+        msg: The SSM agent is already installed on this device
+
+    - name: End host
+      meta: end_host
+  when: "'amazon-ssm-agent' in ansible_facts.packages"
+
+- name: Ensure required directories are present
+  file:
+    path: "{{ token_dir }}"
+    recurse: true
+    state: directory
+    mode: 0755
+
+- name: Set JWT Token for device
+  when: 'device_type == "dedicated"'
+  block:
+    - name: "Check for existing token in {{ token_dir }}"
+      stat:
+        path: "{{ token_dir }}/token"
+      register: existing_token
+
+    - name: Get JWT token for device
+      server_attributes:
+        device_id: "{{ rs_server }}"
+        rackertoken: "{{ rackertoken|default(lookup('env', 'RACKERTOKEN')) }}"
+        attributes:
+          - ssm_jwt
+      become: false
+      delegate_to: localhost
+      when: not existing_token.stat.exists
+
+    - name: Set JWT token to device
+      copy:
+        content: "{{ ansible_facts.server_attributes.ssm_jwt }}"
+        dest: "{{ token_dir }}/token"
+        mode: 0600
+      when: not existing_token.stat.exists
+  rescue:
+    - name: Fail if JWT token can not be stored on the device
+      fail:
+        msg: >
+          An error occurred when attempting to store the JWT token at {{ token_dir }}/token.
+          {{ ansible_failed_result.msg }}
+
+- name: Install SSM agent
+  block:
+    - name: Download the latest SSM agent install script
+      get_url:
+        url: "{{ ssm_install_script }}"
+        dest: "{{ token_dir }}/{{ script_filename }}"
+        validate_certs: false
+        mode: 0755
+      when: (ansible_os_family == 'RedHat' and ansible_distribution_major_version | int > 6) or ansible_os_family == "Debian"
+
+    - name: Download the latest SSM agent install script
+      command: "curl {{ ssm_install_script }} -o {{ token_dir }}/{{ script_filename }} -k"
+      when: ansible_os_family == 'RedHat' and ansible_distribution_major_version | int <= 6
+
+    - name: Set permissions on download script
+      file:
+        path: "{{ token_dir }}/{{ script_filename }}"
+        mode: 0775
+      when: ansible_os_family == 'RedHat' and ansible_distribution_major_version | int <= 6
+
+    - name: Execute SSM agent installer
+      command: "{{ token_dir }}/{{ script_filename }}"
+      async: 300
+      poll: 10
+      changed_when: false
+
+    - name: Get SSM instance information
+      command: ssm-cli get-instance-information
+      changed_when: false
+      register: ssm_information
+
+    - name: Debug
+      debug:
+        msg: SSM agent successfully installed on device this device
+
+    - name: Output SSM agent instance information
+      debug:
+        var: ssm_information.stdout
+  rescue:
+    - name: SSM installation failed
+      fail:
+        msg: The SSM agent failed to install on this device. {{ ansible_failed_result.msg }}
+  always:
+    - name: Cleanup installation script
+      file:
+        path: "{{ token_dir }}/{{ script_filename }}"
+        state: absent

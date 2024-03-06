@@ -1,0 +1,20 @@
+---
+COOKIE_DIR: /root/.rackspace
+COOKIE_FILES:
+  'CUSTOMER': "{{ COOKIE_DIR }}/customer_number"
+  'DATACENTER': "{{ COOKIE_DIR }}/datacenter"
+  'KICK': "{{ COOKIE_DIR }}/kick"
+  'KICK_DATE': "{{ COOKIE_DIR }}/kick_date"
+  'SEGMENT': "{{ COOKIE_DIR }}/segment"
+  'SERVER': "{{ COOKIE_DIR }}/server_number"
+  'PRIMARY_USER': "{{ COOKIE_DIR }}/primary_user"
+NOADC_DIR: /boot/.rackspace
+NOADC_FILE: "{{ NOADC_DIR}}/noadc"
+os_info_files:
+  - /etc/os-release
+  - /etc/oracle-release
+  - /etc/redhat-release
+  - /etc/centos-release
+  - /etc/lsb-release
+  - /etc/issue
+...

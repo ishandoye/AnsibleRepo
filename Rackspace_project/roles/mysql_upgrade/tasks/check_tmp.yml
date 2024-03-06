@@ -1,0 +1,29 @@
+---
+- name: Check tmp folder still there
+  stat:
+    path: "{{ mysql_vars['results'][1]['msg'] }}"
+  register: check_tmp
+  failed_when: false
+
+- name: Create tmp folder if doesn't exist
+  file:
+    name: "{{ mysql_vars['results'][1]['msg'] }}"
+    owner: mysql
+    group: mysql
+    state: directory
+    mode: 0755
+  when: check_tmp.stat.exists == 0
+  # noqa 208
+  # Default tmpdir is /var/tmp which links to /tmp
+  # We don't want to change permissions for that
+
+- name: Rename folder if symlink
+  shell: mv "{{ mysql_datadir }}/" {{ mysql_datadir[:-1] }}.$(date +"%y%m%d-%H%M%S")
+  when: datadir.stat.islnk
+
+- name: Set real_path if symlink
+  file:
+    src: "{{ datadir['stat']['lnk_source'] }}"
+    dest: "{{ mysql_datadir[:-1] }}"
+    state: link
+  when: datadir.stat.islnk

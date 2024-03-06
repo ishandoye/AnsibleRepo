@@ -1,0 +1,58 @@
+---
+dependency:
+  enabled: false
+
+driver:
+  name: docker
+
+# ansible-lint is not currently playing nicely with custom modules
+# https://github.com/ansible/ansible-lint/issues/372
+lint: |
+  set -e
+  yamllint -c yamllint-cfg.yml .
+
+platforms:
+  - name: plesk-molecule-alma-el8
+    image: docker-remote.artifacts.rackspace.net/almalinux:8
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+
+  - name: plesk-molecule-rocky-el8
+    image: docker-remote.artifacts.rackspace.net/rockylinux:8
+    command: /sbin/init
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_LIBRARY: ../../../../library
+    ANSIBLE_MODULE_UTILS: ../../../../module_utils
+    ANSIBLE_ROLES_PATH: ../../../../roles
+  inventory:
+    host_vars:
+      plesk-molecule-alma-el8:
+        rs_target_name: "12345-plesk-molecule-alma-el8.example.com"
+      plesk-molecule-rocky-el8:
+        rs_target_name: "12345-plesk-molecule-rocky-el8.example.com"
+
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy
+
+verifier:
+  enabled: true
+  name: ansible
+...

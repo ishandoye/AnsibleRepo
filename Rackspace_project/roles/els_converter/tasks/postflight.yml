@@ -1,0 +1,18 @@
+- name: Retrieve Repolist
+  yum:
+    list: repos
+  register: repolist
+
+- name: Report Migration Success to Rigatoni
+  delegate_to: localhost
+  become: false
+  uri:
+    url: "https://stepladder.rax.io/api/rigatoni/v1/reports/GTSENG-205/{{ device_id }}"
+    method: POST
+    return_content: true
+    headers:
+      accept: application/json
+      X-Auth-Token: "{{ rackertoken }}"
+    body: "{\"result_code\":\"90\"}"
+    body_format: json
+  when: rigatoni

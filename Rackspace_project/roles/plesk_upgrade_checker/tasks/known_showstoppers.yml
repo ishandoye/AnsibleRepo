@@ -1,0 +1,154 @@
+---
+
+- debug:
+    msg: "<br>Checking for known showstoppers..."
+
+## Yum excludes
+- name: Check MySQL in yum excludes
+  lineinfile:
+    path: /etc/yum.conf
+    regexp: (?i)^exclude=[^#]*mysql.*
+    state: absent
+  check_mode: yes
+  ignore_errors: true
+  register: check_yum_excludes
+
+- debug:
+    msg: "{% if check_yum_excludes.changed %}[FAIL] MySQL in yum excludes!{% else %}[PASS] MySQL not in yum excludes{% endif %}"
+
+## Package checks
+- name: Gather repository information
+  block:
+    - name: Register repository information
+      yum:
+        list: repos
+      register: register_repos
+
+    - name: List repositories
+      set_fact:
+        repositories: "{{ repositories | default([]) + [ item.repoid ] }}"
+      with_items: "{{ register_repos.results }}"
+
+    - name: Fail when there is an error with gathering repository information
+      fail:
+        msg: '[FAIL] There was an error when trying to obtain the repository information on this device. Manually check and resolve the issues.'
+      when: repositories is not defined
+
+    - debug:
+        msg: '[FAIL] Unsupported or hazardous repository found: {{item}} - Please check if this will cause an issue with the upgrade'
+      when: repositories is defined and item in repositories
+      with_flattened:
+        - "rackspace-rhel-x86_64-server-6-ius"
+        - "rackspace-rhel-x86_64-server-7-ius"
+        - "rackspace-centos6-x86_64-ius"
+        - "rackspace-centos7-x86_64-ius"
+        - "rs-epel"
+        - "mysql-connectors-community"
+        - "atomic"
+        - "jason"
+        - "remi"
+        - "mage"
+        - "bluehat"
+  rescue:
+    - debug:
+        msg: '{{ ansible_failed_result.msg }}'
+
+## Check listening ports
+- name: Checking listening ports
+  shell: netstat -nltp | egrep -i ":80|:443|java|tomcat|nginx|varnish"
+  register: listening_ports
+
+- debug:
+    msg: '[INFO] {{item}} is listening'
+  when: item in listening_ports.stdout
+  with_flattened:
+    - nginx
+    - varnish
+    - tomcat
+    - java
+
+## Check Horde
+- debug:
+    msg: "{% if packages['psa-horde'] is not defined %}[FAIL] Horde is not installed{% else %}[PASS] Horde is installed{% endif %}"
+
+- name: Check for Horde database
+  shell: "mysql -Ns -u admin -p$(cat /etc/psa/.psa.shadow) -e \"show databases;\"" # works whether /root/.my.cnf exists or not
+  register: check_horde_db
+
+- debug:
+    msg: "{% if 'horde' not in check_horde_db.stdout %}[FAIL] Did not find Horde database{% else %}[PASS] Found Horde database{% endif %}"
+
+## Check Nagios
+- debug:
+    msg: "{% if packages['nagios'] is defined %}[FAIL] Nagios is installed{% else %}[PASS] Nagios is not installed{% endif %}"
+
+## Check Apache
+- name: Check for httpd/conf/workers.properties
+  stat:
+    path: /etc/httpd/conf/workers.properties
+  register: httpd_worker_properties
+
+- name: Backup httpd/conf/workers.properties
+  copy:
+    src: /etc/httpd/conf/workers.properties
+    dest: "/home/rack/.plesk_upgrade_checks/workers.properties_{{ ansible_date_time.date }}_{{ ansible_date_time.time }}"
+    remote_src: yes
+  when: httpd_worker_properties.stat.exists == True
+
+- debug:
+    msg: "[INFO] Created backup of /etc/httpd/conf/workers.properties"
+  when: httpd_worker_properties.stat.exists == True
+
+- name: Check for env_module
+  shell: "/usr/sbin/httpd -M | grep env_module"
+  register: check_envmodule
+  ignore_errors: yes
+
+- debug:
+    msg: "{% if check_envmodule.rc != 0 %}[FAIL] Apache module env_module is not enabled{% else %}[PASS] Apache module env_smodule is enabled{% endif %}"
+
+# Operating System Checks
+- debug:
+    msg: "[INFO] Hostname is {{ ansible_hostname }}"
+
+- name: Check hosts file
+  lineinfile:
+    path: /etc/hosts
+    regexp: (?i)^[^#]*{{ ansible_hostname }}.*
+    state: absent
+  check_mode: yes
+  ignore_errors: true
+  register: get_hosts
+
+- debug:
+    msg: "{% if get_hosts.changed %}[PASS] Hostname detected in hosts file{% else %}[FAIL] Hostname not found in hosts file{% endif %}"
+
+- name: Check qmail file
+  stat:
+    path: /var/qmail/control/me
+  register: qmail_me
+
+- debug:
+    msg: "[INFO] /var/qmail/control/me does not exist"
+  when: qmail_me.stat.exists == False
+
+- debug:
+    msg: "[PASS] Hostname found in /var/qmail/control/me"
+  when: qmail_me.stat.exists == True
+
+- name: Check for Yum updates
+  yum:
+    list: updates
+    update_cache: true
+  register: yum_check_update
+
+- debug:
+    msg: "[INFO] There are {{ yum_check_update.results|length }} yum packages available to upgrade"
+
+## Other Checks
+- name: Check whether legacy installation
+  shell: "mysql -Ns -u admin -p$(cat /etc/psa/.psa.shadow) -e \"select version_info from psa.upgrade_history;\""
+  register: check_for_versions
+
+- debug:
+    msg: "{% if ('12.5.30' in check_for_versions.stdout) or ('12.0' in check_for_versions.stdout)%}[FAIL] This is a legacy installation of Plesk, please check apsc.aps_application_resource exists{% else %}[PASS] This is not a legacy Plesk installation{% endif %}"

@@ -1,0 +1,20 @@
+---
+- name: Remove all PHP packages for switching streams
+  command: dnf -y module remove php --all --noautoremove
+  register: dnf_output
+  changed_when: dnf_output.rc == 0
+
+- name: Reset the PHP appstream module
+  command: dnf -y module reset php
+  register: dnf_output
+  changed_when: dnf_output.rc == 0
+
+- name: Enable PHP appstream with defined stream
+  dnf:
+    name: "@php:{{ appstream_version }}"
+    state: present
+
+- name: Install PHP/PHP-FPM
+  dnf:
+    name: "{{ replace_with }}"
+    state: present

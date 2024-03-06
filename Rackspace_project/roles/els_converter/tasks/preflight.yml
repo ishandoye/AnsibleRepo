@@ -1,0 +1,98 @@
+- name: Pull Rigatoni project devices
+  delegate_to: localhost
+  become: false
+  uri:
+    url: https://stepladder.rax.io/api/rigatoni/v1/projects/GTSENG-205/devices
+    method: GET
+    return_content: true
+    headers:
+      accept: application/json
+      X-Auth-Token: "{{ rackertoken }}"
+  register: devices
+  when: rigatoni
+
+- name: Save Rigatoni project device list
+  set_fact:
+    devicelist: "{{ devices.json | json_query(devicequery) }}"
+  vars:
+    devicequery: "[*].device_id"
+  when: rigatoni
+
+- name: Parse device ID from inventory hostname
+  set_fact:
+    device_id: "{{ inventory_hostname.split('::')[0] }}"
+
+- block:
+    - name: End playbook if device not in Rigatoni project
+      debug:
+        msg: "Device not in Rigatoni Project. Ending play"
+
+    - name: Execute end
+      meta: end_host
+  when:
+    - rigatoni
+    - "device_id not in devicelist"
+
+- name: Check if device is no longer active
+  delegate_to: localhost
+  shell: |
+    set -o pipefail
+    ht status {{ device_id }} | grep -q "Computer No Longer Active"
+  args:
+    executable: /bin/sh
+  register: device_status
+  failed_when: device_status.rc not in [0, 1]
+  changed_when: false
+  when: not stepladder
+
+- block:
+    - name: Report Success to Rigatoni when device is no longer active
+      delegate_to: localhost
+      become: false
+      uri:
+        url: "https://stepladder.rax.io/api/rigatoni/v1/reports/GTSENG-205/{{ device_id }}"
+        method: POST
+        return_content: true
+        headers:
+          accept: application/json
+          X-Auth-Token: "{{ rackertoken }}"
+        body: "{\"result_code\":\"90\"}"
+        body_format: json
+      when: rigatoni
+
+    - name: Stop running if device is no longer active
+      debug:
+        msg: "Device is no longer active"
+    - name: Execute End
+      meta: end_host
+  when:
+    - not stepladder
+    - device_status.rc == 0
+
+- block:
+
+    - name: SSH connectivity test
+      shell: 'echo SUCCESSFUL-{{ device_id }}'
+      register: ssh_check
+      failed_when: ssh_check.stdout != "SUCCESSFUL-{{ device_id }}"
+      changed_when: false
+
+  rescue:
+    - name: Report SSH Failure to Rigatoni
+      delegate_to: localhost
+      become: false
+      uri:
+        url: "https://stepladder.rax.io/api/rigatoni/v1/reports/GTSENG-205/{{ device_id }}"
+        method: POST
+        return_content: true
+        headers:
+          accept: application/json
+          X-Auth-Token: "{{ rackertoken }}"
+        body: "{\"result_code\":\"15\"}"
+        body_format: json
+      when: rigatoni
+
+    - name: Fail on SSH Error
+      fail:
+        msg: "Could not SSH to server"
+  when: not stepladder

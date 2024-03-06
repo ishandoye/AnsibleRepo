@@ -1,0 +1,51 @@
+---
+- name: Fail if OS is not supported
+  ansible.builtin.fail:
+    msg: >
+      {{ ansible_distribution }} {{ ansible_distribution_version }}
+      is not supported
+  when: ansible_distribution_major_version | int not in
+          supported_distros[ansible_distribution | lower] | default([])
+
+- name: Fail if `role_action` is not valid
+  ansible.builtin.fail:
+    msg: >-
+      role_action '{{ role_action }}' is not valid - must be one of
+      [{{ allowed_actions | join(',') }}]
+  when: role_action not in allowed_actions
+
+- name: Check if Sophos Central is installed
+  ansible.builtin.stat:
+    path: "{{ sophos_path }}"
+  register: sophos_installed
+  become: true
+
+- name: Report if Sophos Central is already in desired state
+  ansible.builtin.debug:
+    msg: >-
+      Sophos Central is already
+      {{ (role_action == "remove") | ternary("uninstalled", "installed") }}
+  when: (role_action == "remove" and not sophos_installed.stat.exists) or
+    (role_action == "install" and sophos_installed.stat.exists and
+     not force_reinstall)
+
+# Ensure we can get the installer before
+# carrying out any actions on the target(s)
+- name: Get linux installer
+  ansible.builtin.include_tasks:
+    file: get_installer.yml
+  when: role_action == "install"
+
+- name: Run uninstall
+  ansible.builtin.include_tasks:
+    file: remove.yml
+  when:
+    - sophos_installed.stat.exists
+    - role_action == "remove" or force_reinstall
+
+- name: Run install
+  ansible.builtin.include_tasks:
+    file: install.yml
+  when:
+    - role_action == "install"
+    - force_reinstall or not sophos_installed.stat.exists

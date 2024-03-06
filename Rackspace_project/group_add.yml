@@ -1,0 +1,19 @@
+---
+
+# Add group, and optionally add sudo rule. See README.md for more information.
+
+# The sudo rule that needs to be added is defined in default/main.yml file.
+# This can be overridden at any level (group_vars, host_vars, , extra vars...)
+
+- hosts: all
+  become: True
+  gather_facts: False
+
+  vars_files:
+    - roles/group_add/vars/groups.yml
+
+  tasks:
+  - include_role:
+      name: group_add
+
+...

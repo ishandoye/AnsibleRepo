@@ -1,0 +1,12 @@
+tinker panic 0
+driftfile /var/lib/ntp/ntp.drift
+restrict {{ rs_time_server_ip }} mask 255.255.255.255 nomodify
+restrict -4 default kod notrap nomodify nopeer noquery
+restrict -6 default kod notrap nomodify nopeer noquery
+restrict 127.0.0.1
+restrict ::1
+server 0.ubuntu.pool.ntp.org
+server 1.ubuntu.pool.ntp.org
+server 2.ubuntu.pool.ntp.org
+server 3.ubuntu.pool.ntp.org
+server {{ rs_time_server_fqdn }} prefer

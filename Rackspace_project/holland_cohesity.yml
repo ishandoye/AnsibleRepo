@@ -1,0 +1,7 @@
+---
+- name: Install or migrate to rs-holland-cohesity
+  hosts: all
+  become: true
+  gather_facts: true
+  roles:
+    - role: holland_cohesity

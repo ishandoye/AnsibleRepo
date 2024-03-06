@@ -1,0 +1,74 @@
+- block:
+    - name: Verify OS is Redhat Based version  6, 7, or 8
+      fail:
+        msg: "Operating system must be Redhat Based on versions 6, 7, or 8"
+      when: ( ansible_os_family != 'RedHat' ) or
+            ( ansible_distribution_major_version not in ('6', '7', '8'))
+      changed_when: false
+
+  rescue:
+    - name: Report OS Distro Failure to Rigatoni
+      delegate_to: localhost
+      become: false
+      uri:
+        url: "https://stepladder.rax.io/api/rigatoni/v1/reports/GTSENG-205/{{ device_id }}"
+        method: POST
+        return_content: true
+        headers:
+          accept: application/json
+          X-Auth-Token: "{{ rackertoken }}"
+        body: "{\"result_code\":\"10\"}"
+        body_format: json
+      when: rigatoni
+
+    - name: Fail on Unsupported OS
+      fail:
+        msg: "Unsupported Operating System Found"
+
+- name: Retrieve Repolist
+  yum:
+    list: repos
+  register: repolist
+
+- name: Check if EPEL is found
+  vars:
+    search_val: 'epel'
+  debug:
+    msg: "{{ item.repoid }} has been found"
+  with_items: "{{ repolist.results }}"
+  when: item.repoid.endswith(search_val)
+  register: epelfound
+
+- name: Check if IUS is found
+  vars:
+    search_val: 'ius'
+  debug:
+    msg: "{{ item.repoid }}"
+  with_items: "{{ repolist.results }}"
+  when: item.repoid.endswith(search_val)
+  register: iusfound
+
+- name: Collect installed packages
+  package_facts:
+    manager: auto
+
+- name: Check for cluster and install cmirror
+  yum:
+    name: cmirror
+    disable_excludes: all
+    state: present
+  when: '"lvm2_cluster" in ansible_facts.packages'
+
+- name: Report OS Distro Failure to Rigatoni
+  delegate_to: localhost
+  become: false
+  uri:
+    url: "https://stepladder.rax.io/api/rigatoni/v1/reports/GTSENG-205/{{ device_id }}"
+    method: POST
+    return_content: true
+    headers:
+      accept: application/json
+      X-Auth-Token: "{{ rackertoken }}"
+    body: "{\"result_code\":\"80\"}"
+    body_format: json
+  when: rigatoni

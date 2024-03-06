@@ -1,0 +1,14 @@
+---
+core_name: ntp
+service_name: "{{ core_name }}d"
+ntp_config_src:
+  - "{{ core_name }}.conf.{{ ansible_os_family | lower }}.j2"
+  - "sysconfig-{{ service_name }}.j2"
+  - "{{ core_name }}.step-tickers.j2"
+ntp_config_dest:
+  - "/etc/{{ core_name }}.conf"
+  - "/etc/sysconfig/{{ service_name }}"
+  - "/etc/{{ core_name }}/step-tickers"
+packages:
+  - "{{ core_name }}"
+...

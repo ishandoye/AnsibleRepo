@@ -1,0 +1,39 @@
+---
+- name: Obtain CORE data if running through ACE
+  block:
+  - name: Obtain json core data for the task
+    uri:
+      url: "{{ config_host|default(config_url) }}/v2/task/{{ config_id }}/data?\
+        adhoc_core_data=adhoc_core_data.json"
+      headers:
+        X-Task-Data-Password: "{{ task_data_password }}"
+    register: core
+    retries: 3
+    delay: 5
+    until: core.status == 200
+
+  - name: Obtain more json core data for the task
+    uri:
+      url: "{{ config_host|default(config_url) }}/v2/task/{{ config_id }}/data?\
+        adc_core_data=adc_core_data.json"
+      headers:
+        X-Task-Data-Password: "{{ task_data_password }}"
+    register: adc_core
+    retries: 3
+    delay: 5
+    until: adc_core.status == 200
+
+  - name: Set CORE facts obtained
+    set_fact:
+      rs_customer: "{{ core.json.core_account_number }}"
+      rs_datacenter: "{{ core.json.core_datacenter }}"
+      rs_region: "{{ core.json.core_region }}"
+      rs_server: "{{ core.json.core_device_number }}"
+      rs_target_sla: "{{ core.json.core_device_service_level }}"
+      rs_ctkapi_info:
+        primary_userid: "{{ core.json.core_primary_user_id }}"
+        primary_ip: "{{ adc_core.json.core_ip_info.public.ip_address }}"
+      rs_server_type: "core"
+  become: "no"
+  delegate_to: localhost
+...

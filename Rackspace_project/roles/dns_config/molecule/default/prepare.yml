@@ -1,0 +1,6 @@
+---
+- name: Prepare Dedicated Servers
+  hosts: stable
+  roles:
+    - role: dummy_raxfacts
+    - role: molecule_container_prep

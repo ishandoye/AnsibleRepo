@@ -1,0 +1,37 @@
+---
+base_pkgs:
+  - sudo
+
+el_base_pkgs:
+  - "{{ base_pkgs }}"
+  - bind-utils
+
+deb_base_pkgs:
+  - "{{ base_pkgs }}"
+  - dnsutils
+  - iputils-ping
+  - dbus
+
+pre_ubuntu18_base_pkgs:
+  - iproute
+
+os_packages:
+  RedHat:
+    "6":
+      - "{{ el_base_pkgs }}"
+    "7":
+      - "{{ el_base_pkgs }}"
+      - NetworkManager
+      - rhn-setup
+  Debian:
+    "14":
+      - "{{ deb_base_pkgs }}"
+      - "{{ pre_ubuntu18_base_pkgs }}"
+    "16":
+      - "{{ deb_base_pkgs }}"
+      - "{{ pre_ubuntu18_base_pkgs }}"
+    "18":
+      - "{{ deb_base_pkgs }}"
+      - iproute2
+
+packages: "{{ os_packages[ansible_os_family][ansible_distribution_major_version] | flatten }}"

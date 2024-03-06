@@ -1,0 +1,21 @@
+---
+
+- name: Query core for obm networking information
+  uri:
+    url: "https://ws.core.rackspace.com/ctkapi/attribute/Computer.Computer/{{ rs_server }}/dracnet_ip.{{ item }}"
+    method: GET
+    headers:
+      X-Auth-Token: "{{ lookup('rax_secret', 'rackertoken') }}"
+  become: false
+  delegate_to: 127.0.0.1
+  with_items:
+    - ip_address
+    - netmask
+    - gateway
+  register: core_obm_info
+
+- name: Set obm variables
+  set_fact:
+    obm_ip: "{{ core_obm_info.results[0].json }}"
+    obm_nm: "{{ core_obm_info.results[1].json }}"
+    obm_gw: "{{ core_obm_info.results[2].json }}"

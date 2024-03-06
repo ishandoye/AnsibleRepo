@@ -1,0 +1,15 @@
+---
+# extra-vars has to be on this format
+#
+# {
+#     "hostname":{
+#         "431848": "431848-example.co.uk",
+#         "389562": "test.co.uk",
+#         }
+# }
+
+# device numbers are obtained from hammertime inventory variable
+device_id: "{{ rs_server|default('') }}"
+
+# hostname is identified via extra_vars
+new_hostname: "{{ hostname[device_id|string] }}"

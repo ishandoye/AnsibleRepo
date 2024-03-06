@@ -1,0 +1,10 @@
+php_newrelic_path: 
+        - /etc/php5/mods-available/newrelic.ini
+        - /etc/php5/fpm/conf.d/newrelic.ini
+        - /etc/php/7.0/fpm/conf.d/newrelic.ini
+        - /etc/php/7.0/mods-available/newrelic.ini
+php_fpm_srv: php5-fpm
+apache_srv: apache2
+apache_pid_path: /var/run/apache2/apache2.pid                                                                                               
+php_fpm_pid_path: /var/run/php/php5-fpm.pid 
+php7_fpm_pid_path: /var/run/php/php7.0-fpm.pid

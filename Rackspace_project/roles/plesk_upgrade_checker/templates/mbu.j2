@@ -1,0 +1,9 @@
+{% for grouping, list in mbu_data.json['items']|groupby('subclientName') %}
+Linux File System (defaultBackupSet): {{ grouping }}
+  {{' %-10s %-15s %-10s %-10s'|format('Job ID', 'Backup Level', 'Status', 'Start Time')}}
+  {{' %-10s %-15s %-10s %-10s'|format('---------', '------------', '---------', '-----------------------')}}
+{% for job in list %}
+{% set start = job.jobStartTime_utc.split('T') %} {% set start_time = start[1].split('+') %}
+  {{'%-10s %-15s %-10s %-10s %-10s'|format(job.jobId, job.backupLevel, job.jobState, start[0], start_time[0] + ' UTC')}}
+{% endfor %}
+{% endfor %}

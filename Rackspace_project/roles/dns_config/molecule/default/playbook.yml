@@ -1,0 +1,7 @@
+---
+- name: Test Dedicated Servers
+  hosts: stable
+  roles:
+    - role: dummy_raxfacts
+    - role: dns_config
+

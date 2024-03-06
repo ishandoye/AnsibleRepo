@@ -1,0 +1,32 @@
+---
+# This file correctly sets PHP packages for reinstallation that have names which can vary across PHP versions and repos.
+
+- name: Ensure correct opcache package name is set for reinstallation
+  block:
+    - name: Get current opcache package name
+      loop: "{{ php_packages }}"
+      set_fact:
+        opcache_package: "{{ item }}"
+      when: "'opcache' in item"
+    - name: Add correct opcache package name for reinstallation
+      set_fact:
+        php_packages: "{{ php_packages|difference([opcache_package])|union([opcache_package_name[replace_with]]) }}"
+  when: '"Zend OPcache" in php.php_enabled_modules'
+
+- name: Set pear package name
+  set_fact:
+    pear_package_name: "'php-pear.noarch' if replace_with in ('php', 'php-fpm') else 'pear1.noarch'"
+
+- name: Check if pear is installed
+  command: rpm -q {{  pear_package_name }}
+  register: pear_package
+  check_mode: false
+  args:
+    warn: false
+  changed_when: false
+  failed_when: false
+
+- name: Add pear package for reinstallation
+  set_fact:
+    php_packages: "{{ php_packages|union([pear_package_name]) }}"
+  when: pear_package.rc == 0

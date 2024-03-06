@@ -1,0 +1,22 @@
+- name: Check old hostname
+  shell: mysql -e "SELECT DISTINCT host FROM mysql.user;" | grep {{ current_hostname }}
+  register: mysql_hostname
+  failed_when: false
+  changed_when: false
+
+- name: Mysql message
+  debug:
+     msg: "there is one or more mysql users has old hostname listed. Inform this to customer"
+  when: mysql_hostname.stdout != ""
+
+- name: Check binary log enabled
+  shell: mysql -Nse "show variables like 'relay-log';" | awk '{print $2}'
+  register: mysql_binary_log_enabled
+  failed_when: false
+  changed_when: false
+
+- name: Mysql binary log message
+  debug:
+    msg: "Binary log is enabled on this server. Please update log-bin and relay-log values on /etc/my.cnf with original hostname. If not, mysql replication can break"
+  when: mysql_binary_log_enabled.stdout == "ON"
+

@@ -1,0 +1,55 @@
+---
+- name: Set default appstream version if not defined
+  set_fact:
+    appstream_version: "{{ default_appstream }}"
+  when: appstream_version is not defined
+
+- name: Extract PHP major version from appstream version
+  set_fact:
+    appstream_major_version: "{{ appstream_version|regex_search('[0-9]+\\.[0-9]+') }}"
+
+- name: Set use_remi fact
+  set_fact:
+    use_remi: "{{ appstream_version | regex_search('remi') == none  }}"
+
+- name: Fail if target package is already installed
+  fail:
+    msg: "{{ replace_with }} version {{ appstream_version }} is already installed! Skipping host.."
+  when:
+    - appstream_major_version == php.php_version_major
+    - use_remi and php.php_pkg_source == "remi"
+
+- name: Ensure Remi repositories are configured correctly if using remi-modular
+  block:
+    - name: Install the EPEL repository (dedicated devices)
+      dnf:
+        name: epel-release-rackspace
+        state: present
+      when: rs_server_type == "core"
+    - name: Install the EPEL repository (non-dedicated devices)
+      dnf:
+        name: 'https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm'
+        state: present
+      when: rs_server_type != "core"
+    - name: Install Remi GPG Key
+      rpm_key:
+        key: 'https://rpms.remirepo.net/RPM-GPG-KEY-remi2018'
+    - name: Install the remi repositories
+      dnf:
+        name: 'https://rpms.remirepo.net/enterprise/remi-release-8.rpm'
+        state: present
+    - name: Exclude the phpXX packages in the remi-safe repository.
+      command: 'dnf config-manager --save --setopt=remi-safe.exclude=php*'
+  when: "'remi' in appstream_version"
+
+- name: Ensure given appstream version is valid
+  fail:
+    msg: "Appstream version {{ appstream_version }} is invalid. Valid choices are: {{ appstream_versions }}."
+  when:
+    - appstream_version is defined
+    - appstream_version not in appstream_versions
+
+- name: Ensure only PHP or PHP-FPM are requested to be installed
+  fail:
+    msg: "EL8 only supports 'php' and 'php-fpm' for 'replace_with' arg. Specify version with 'appstream_version' arg (default: {{ default_appstream }})."
+  when: replace_with not in ("php", "php-fpm")

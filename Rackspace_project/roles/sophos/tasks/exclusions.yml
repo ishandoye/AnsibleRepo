@@ -1,0 +1,13 @@
+---
+- name: Set on-access excluded paths  # noqa 301
+  command: "{{ sophos_bin_dir }}/savconfig add ExcludeFilePaths {{ item }}"
+  register: pathexclude
+  loop: "{{ sophos_excluded_paths }}"
+  failed_when: pathexclude.rc != 0
+
+- name: Set on-access excluded globs  # noqa 301
+  command: "{{ sophos_bin_dir }}/savconfig add ExcludeFileOnGlob {{ item }}"
+  register: globexclude
+  loop: "{{ sophos_excluded_globs }}"
+  failed_when: globexclude.rc != 0
+...

@@ -1,0 +1,12 @@
+---
+- name: Enable the use of fanotify  # noqa 301
+  command: "{{ sophos_bin_dir }}/savconfig set DisableFanotify false"
+
+- name: Prefer to use fanotify instead of talpa  # noqa 301
+  command: "{{  sophos_bin_dir }}/savconfig set PreferFanotify true"
+  notify:
+    - restart sav-protect
+
+- meta: flush_handlers
+
+...

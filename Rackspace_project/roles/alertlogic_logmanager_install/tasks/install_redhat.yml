@@ -1,0 +1,8 @@
+---
+- name: Install the package
+  package:
+    name: "{{ al_pkg_file }}"
+    state: present
+    disable_gpg_check: true
+  notify: Cleanup remote pkg
+...

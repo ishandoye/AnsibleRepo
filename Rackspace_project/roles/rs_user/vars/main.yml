@@ -1,0 +1,4 @@
+---
+core_api: "https://ws.core.rackspace.com"
+core_attrib: "ctkapi/attribute/Computer.Computer"
+...

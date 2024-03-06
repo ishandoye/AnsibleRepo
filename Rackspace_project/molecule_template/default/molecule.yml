@@ -1,0 +1,117 @@
+--
+dependency:
+  # Dependencies in this repo do not come from Ansible Galaxy
+  enabled: false
+  name: galaxy
+
+driver:
+  name: docker
+
+lint: |
+  set -e
+  yamllint .
+
+# Most init systems need some level of system access to operate in
+# Docker's containerized environment
+platforms:
+  - name: molecule-c6
+    image: docker-remote.artifacts.rackspace.net/centos:6
+    capabilities:
+      - SYS_ADMIN
+    network: default
+
+  - name: molecule-c7
+    image: docker-remote.artifacts.rackspace.net/centos:7
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    groups:
+      - managed_cloud
+
+  - name: molecule-c8
+    image: docker-remote.artifacts.rackspace.net/centos:8
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule-u16
+    image: docker-remote.artifacts.rackspace.net/ubuntu:16.04
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule-u18
+    image: docker-remote.artifacts.rackspace.net/ubuntu:18.04
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule-u20
+    image: docker-remote.artifacts.rackspace.net/ubuntu:18.04
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule-d9
+    image: docker-remote.artifacts.rackspace.net/debian:9
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule-d10
+    image: docker-remote.artifacts.rackspace.net/debian:10
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  - name: molecule-lp15
+    image: docker-remote.artifacts.rackspace.net/opensuse/leap:15
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+provisioner:
+  name: ansible
+  env:
+    # assumes role is being tested directly from SupportTools/playbooks
+    # this is generally needed when using custom modules from this repo
+    ANSIBLE_LIBRARY: ../../../../library
+    ANSIBLE_MODULE_UTILS: ../../../../module_utils
+    ANSIBLE_ROLES_PATH: ../../../../roles
+    # Set to true if `molecule --debug` is insufficient
+    ANSIBLE_DEBUG: false
+
+scenario:
+  name: default
+  test_sequence:
+    - syntax
+    - destroy
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy
+
+verifier:
+  # ansible is the default verifier
+  # testinfra can also be used
+  name: ansible
+  enabled: true
+...

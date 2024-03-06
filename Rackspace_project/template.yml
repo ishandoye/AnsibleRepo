@@ -1,0 +1,12 @@
+---
+- hosts: all
+  become: true
+
+  vars_prompt:
+    - name: example_var
+      prompt: "Example var"
+      private: no
+
+  roles:
+    - template
+...

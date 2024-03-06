@@ -1,0 +1,28 @@
+---
+- hosts: all
+  become: true
+  vars:
+    rackertoken: "{{ lookup('rax_secret', 'rackertoken') }}"
+  tasks:
+  - block:
+    - name: Include sftp_useradd role
+      include_role:
+        name: sftp_useradd
+    tags: [ always ]
+  - block:
+    - name: Include create_myrackfile role
+      include_role:
+        name: create_myrackfile
+        apply:
+            delegate_to: localhost
+      vars:
+        rs_server: "{{ inventory_hostname }}"
+        default_filename: "sftp-{{ sftp_user }}"
+        myrackfile_name: "{{ myrackfile_custom|default(default_filename) }}-{{ inventory_hostname }}.txt"
+        myrackfile_content: |
+          Username: {{ sftp_user }}
+          Password: {{ pass_sftp.split(' ')[0] }}
+      when: rs_server_type == "core"
+    become: false
+    tags: [ never, upload ]
+...

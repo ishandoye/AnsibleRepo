@@ -1,0 +1,23 @@
+---
+- name: Join servers to Rackspace GlobalRS Active Directory
+  hosts: all
+  become: true
+  vars:
+    type: globalrs
+  vars_prompt:
+    - name: JOINACCT
+      prompt: "Username for domain join (your INTENSIVE username)"
+      private: false
+    - name: JOINPWD
+      prompt: "Password for domain join (your INTENSIVE password)"
+      private: true
+      # By default, we won't update any config if this device is already
+      # domain joined but allow this to be overridden
+    - name: JOINAGAIN
+      prompt: "Continue if device is already domain joined? y/n"
+      default: "n"
+      private: false
+  tasks:
+    - include_role:
+        name: sssd_ad
+...

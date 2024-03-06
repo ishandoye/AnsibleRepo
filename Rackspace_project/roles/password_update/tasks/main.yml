@@ -1,0 +1,19 @@
+- name: Check for local user
+  command: "grep '^{{username}}:' /etc/passwd"
+  register: user_state
+  failed_when: False
+  changed_when: False
+
+- name: update user password
+  user:
+    state: present
+    password: "{{lookup('password', '/tmp/%s.credentials.txt encrypt=sha512_crypt chars=ascii_letters,digits length=12' % username)}}"
+    update_password: always
+    name: "{{username}}"
+    # if the password was provided externally, simply create
+    # /tmp/username.credentials.txt with the desired password as the only content
+  when: "user_state.rc == 0"
+
+- debug:
+    msg: "{{username}} not known to {{ansible_nodename}}, no password reset performed"
+  when: "user_state.rc != 0"

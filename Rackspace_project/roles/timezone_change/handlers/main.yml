@@ -1,0 +1,39 @@
+    - name: restart crond
+      service: name=crond state=restarted
+      listen: "restart dependent services"
+      when: ansible_os_family == "RedHat"
+
+    - name: restart cron
+      service: name=cron state=restarted
+      listen: "restart dependent services"
+      when: ansible_os_family == "Debian"
+
+    - name: restart rsyslog
+      service: name=rsyslog state=restarted
+      listen: "restart dependent services"
+      when: (ansible_os_family == "Debian") or
+            (ansible_os_family == "RedHat" and ansible_distribution_major_version|int >= 6)
+
+    - name: restart syslog
+      service: name=syslog state=restarted
+      listen: "restart dependent services"
+      when:  ansible_os_family == "RedHat" and ansible_distribution_major_version|int <= 5
+
+    - name: restart ntpd
+      service: name=ntpd state=restarted
+      register: ntpd_service
+      failed_when: "ntpd_service is failed and ('find' not in ntpd_service.msg and 'found' not in ntpd_service.msg)"
+      listen: "restart dependent services"
+      when: ansible_os_family == "RedHat"
+
+    - name: restart ntp
+      service: name=ntp state=restarted
+      register: ntp_service
+      failed_when: "ntp_service is failed and ('find' not in ntp_service.msg and 'found' not in ntp_service.msg)"
+      listen: "restart dependent services"
+      when: ansible_os_family == "Debian"
+
+    - name: restart mysql
+      service: name="{{ mysql_name }}" state=restarted
+      listen: "restart dependent services"
+      when: mysql_running is defined and mysql_running is changed

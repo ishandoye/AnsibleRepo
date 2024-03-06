@@ -1,0 +1,48 @@
+---
+- name: Get MySQL password hash
+  slurp:
+    src: /etc/psa/.psa.shadow
+  register: mysql_password_hash
+
+- name: Create root MySQL client configuration
+  blockinfile:
+    dest: /root/.my.cnf
+    owner: root
+    group: root
+    mode: 0600
+    create: true
+    block: |
+      [client]
+      user = admin
+      password = "{{ mysql_password_hash.content|b64decode }}"
+
+- name: Run holland backup
+  command: holland bk
+  when: packages['holland'] is defined
+
+- name: Configure firewalld
+  block:
+    - name: Get firewalld status
+      systemd:
+        name: firewalld
+      register: systemd_firewalld
+
+    - name: Open firewalld access to Plesk secure port
+      firewalld:
+        port: 8443/tcp
+        state: enabled
+        immediate: true
+        permanent: true
+      when: systemd_firewalld.status.ActiveState == "active"
+
+  when: packages['firewalld'] is defined
+
+- name: Block ServiceNet access to Plesk
+  blockinfile:
+    dest: /usr/local/psa/admin/conf/panel.ini
+    create: true
+    marker: "; {mark} Rackspace configuration block"
+    block: |
+        [ip]
+        blacklist = "{{ ansible_all_ipv4_addresses | difference(ansible_default_ipv4.address) }}"
+...

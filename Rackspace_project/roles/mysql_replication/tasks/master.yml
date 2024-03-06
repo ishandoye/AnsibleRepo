@@ -1,0 +1,57 @@
+  - name: Set mysql configuration - log-bin
+    lineinfile:
+        path: /etc/my.cnf
+        line: "log-bin={{ master_log_bin }}"
+        insertafter: "^.mysqld.$"
+        regexp: "^[#]?log-bin="
+    notify: Restart mysqld
+
+  - name: Set mysql configuration - binlog-format
+    lineinfile:
+        path: /etc/my.cnf
+        line: "binlog-format={{ master_binlog_format }}"
+        insertafter: "^.mysqld.$"
+        regexp: "^[#]?binlog-format="
+    notify: Restart mysqld
+
+  - name: Set mysql configuration - expire-logs-days
+    lineinfile:
+        path: /etc/my.cnf
+        line: "expire-logs-days={{ master_expire_logs_days }}"
+        insertafter: "^.mysqld.$"
+        regexp: "^[#]?expire-logs-days="
+    notify: Restart mysqld
+
+  - name: Set mysql configuration - server-id
+    lineinfile:
+        path: /etc/my.cnf
+        line: "server-id={{ rs_server }}"
+        insertafter: "^.mysqld.$"
+        regexp: "^[#]?server-id="
+    notify: Restart mysqld
+
+  - meta: flush_handlers
+
+  - name: Create replicant user for each slave
+    mysql_user:
+        name: replicant
+        password: "{{ replicant_password }}"
+        priv: "*.*:REPLICATION SLAVE"
+        host: "{{ item }}"
+        state: present
+    with_items: "{{ (groups['all'] | map('extract', hostvars, ['ansible_facts', 'default_ipv4', 'address']) | list) | difference(ansible_facts.default_ipv4.address) }}"
+
+  - name: Create MySQL dump file
+    shell: "mysqldump --all-databases --master-data | gzip -1 > /home/rack/replication.sql.gz"
+
+  - name: Copy MySQL dump file
+    fetch:
+        src: /home/rack/replication.sql.gz
+        dest: /tmp/replication-{{ master }}.sql.gz
+        flat: yes
+
+  - name: Copy .my.cnf file
+    fetch:
+        src: /root/.my.cnf
+        dest: /tmp/.my.cnf
+        flat: yes

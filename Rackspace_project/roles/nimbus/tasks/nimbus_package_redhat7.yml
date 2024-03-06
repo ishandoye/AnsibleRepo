@@ -1,0 +1,8 @@
+---
+# RHEL/CentOS/Oracle 7 -> Intensiveprobes-RHEL7
+- name: Define nimbus package for Red Hat-based distros version 7
+  set_fact:
+    nimbus_package: "Intensiveprobes-RHEL7"
+  changed_when: "False"
+
+...

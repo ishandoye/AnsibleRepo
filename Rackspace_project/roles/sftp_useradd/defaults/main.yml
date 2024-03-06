@@ -1,0 +1,3 @@
+---
+sftp_group: "sftponly"
+bind_mount: "sftp_upload"

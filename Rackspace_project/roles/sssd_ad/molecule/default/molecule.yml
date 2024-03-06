@@ -1,0 +1,140 @@
+---
+driver:
+  name: docker
+
+platforms:
+  - name: sssd-test-el6
+    image: centos:6
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    tmpfs:
+      - /run
+      - /tmp
+    network: default
+  - name: sssd-test-el7
+    image: centos:7
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    network: default
+  - name: sssd-test-el8
+    image: almalinux:8
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    network: default
+  - name: sssd-test-el9
+    image: almalinux:9
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    network: default
+  - name: sssd-test-u1404
+    image: ubuntu-upstart:14.04
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      # Next line is required if running on an EL-based host with SELinux
+      - /sys/fs/selinux:/sys/fs/selinux:ro
+    network: default
+  - name: sssd-test-u1604
+    image: ubuntu:16.04
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      # Next line is required if running on an EL-based host with SELinux
+      - /sys/fs/selinux:/sys/fs/selinux:ro
+    network: default
+  - name: sssd-test-u1804
+    image: ubuntu:18.04
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    network: default
+  - name: sssd-test-u2004
+    image: ubuntu:20.04
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    network: default
+  - name: sssd-test-u2204
+    image: ubuntu:22.04
+    command: /sbin/init
+    capabilities:
+      - SYS_ADMIN
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    network: default
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      stdout_callback: yaml
+      bin_ansible_callbacks: true
+  log: true
+  inventory:
+    group_vars:
+      all:
+        rs_customer: "${ACCOUNT_ID:-957072}"
+        intensive_dc: ${DC:-LON}
+        type: ${JOINTYPE:-intensive}
+        int_username: ${INTENSIVE_USERNAME}
+        int_password: ${INTENSIVE_PASSWORD}
+        int_cust_username: ${INTENSIVE_CUST_USERNAME}
+        int_cust_password: ${INTENSIVE_CUST_PASSWORD}
+        test_username: ${DOMAIN_TEST_USERNAME}
+        test_password: ${DOMAIN_TEST_PASSWORD}
+        customer_dns_servers: ${CUSTOMER_DNS_SERVERS:-83.138.151.80,83.138.151.81}
+        customer_domain: ${CUSTOMER_DOMAIN:-globalrs.rack.space}
+        customer_workgroup: ${CUSTOMER_WORKGROUP:-magic}
+
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - create
+    - prepare
+    - converge
+    - verify
+    - cleanup
+    - destroy

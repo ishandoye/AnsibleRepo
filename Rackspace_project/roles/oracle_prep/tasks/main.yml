@@ -1,0 +1,109 @@
+---
+
+- name: Check /u01 mounted
+  assert:
+    that: "{{ '/u01' in ansible_mounts|map(attribute='mount')| list }}"
+
+- name: Check /u01 space
+  assert:
+    that: item.mount != '/u01' or {{ item.mount == '/u01' and item.size_total > 100000000000 }}
+    msg: /u01 partition should be at least 100GB
+  with_items: "{{ ansible_mounts }}"
+  no_log: True
+
+- name: Check swap space
+  assert:
+    that: ansible_memory_mb['swap']['total'] > 32000
+
+- name: Install binutils
+  package:
+    name: binutils
+    state: installed
+
+- name: Install gcc-c++
+  package:
+    name: gcc-c++
+    state: installed
+
+- name: Check if sophos is installed
+  stat:
+    path: "{{ sophos_bin_dir }}"
+  register: sophos_install
+
+- name: Validate AV exclusions
+  include_tasks: sophos_exclusion.yml
+  when: sophos_install.stat.exists
+
+- name: Add yum excludes
+  script: scripts/yumExcludes.sh {{ exclude_packages }}
+
+- name: NTP Setup
+  lineinfile:
+    path: /etc/sysconfig/ntpd
+    regexp: 'OPTIONS="'
+    line: 'OPTIONS="-x -u ntp:ntp -p /var/run/ntpd.pid -g"'
+  when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version|int < 7
+
+- name: SAR Setup
+  lineinfile:
+    path: /etc/cron.d/sysstat
+    regexp: '.*/usr/lib64/sa/sa1 1 1'
+    line: '*/5 * * * * root /usr/lib64/sa/sa1 1 1'
+
+- name: Test UEFI
+  stat:
+    path: /sys/firmware/efi
+  register: uefi
+
+- name: Test THP - UEFI
+  command: 'grep ".*linuxefi.*transparent_hugepage=never.*" /etc/grub2-efi.cfg'
+  when: uefi.stat.exists
+  changed_when: false
+  failed_when: false
+  register: uefi_thp
+
+- name: Transparent Huge Pages - UEFI
+  command: '/sbin/grubby --efi --update-kernel=ALL --args=transparent_hugepage=never'
+  when: uefi.stat.exists and uefi_thp.rc == 1
+  register: thp
+
+- name: Test THP - Non-UEFI (RHEL6)
+  command: 'grep ".*kernel.*transparent_hugepage=never.*" /etc/grub.conf'
+  changed_when: false
+  failed_when: false
+  register: non_uefi_thp6
+  when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version|int < 7 and not uefi.stat.exists
+
+- name: Test THP - Non-UEFI (RHEL7)
+  command: 'grep ".*linux16.*transparent_hugepage=never.*" /etc/grub2.cfg'
+  changed_when: false
+  failed_when: false
+  register: non_uefi_thp7
+  when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version|int > 6 and not uefi.stat.exists
+
+- name: Transparent Huge Pages - Non-UEFI
+  command: '/sbin/grubby --update-kernel=ALL --args=transparent_hugepage=never'
+  when: not uefi.stat.exists and ((non_uefi_thp6.rc is defined and non_uefi_thp6.rc == 1) or (non_uefi_thp7.rc is defined and non_uefi_thp7.rc == 1))
+  register: thp
+
+- name: Disable tuned
+  service:
+    name: tuned
+    state: stopped
+    enabled: no
+  when: (ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat') and ansible_distribution_major_version|int > 6
+
+- name: Test DBA Network Access
+  get_url:
+    url: http://dfworacle1.racscan.com
+    dest: /root
+  register: dba
+  changed_when: false
+  failed_when: dba.status_code != 403
+
+- name: Reboot
+  debug:
+    msg:
+      - "The server needs a reboot. Please perform this and run the checkos script"
+      - "wget --http-user=oracledst --http-password=oracledst http://dfworacle1.racscan.com/Linux/x86-64/11gR2/utilities/checkos.pl && chmod 755 checkos.pl; ./checkos.pl"
+  when: thp is defined

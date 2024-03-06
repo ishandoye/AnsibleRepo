@@ -1,0 +1,24 @@
+---
+- name: Run postmap against /etc/postfix/mydomains
+  shell: /usr/sbin/postmap /etc/postfix/mydomains
+- name: Restart syslog
+  service:
+     name: syslog
+     state: restarted
+
+- name: Restart rsyslog
+  service:
+     name: rsyslog
+     state: restarted
+
+- name: Restart postfix
+  service:
+     name: postfix
+     state: restarted
+
+- name: Reload postfix
+  service:
+     name: postfix
+     state: reloaded
+
+

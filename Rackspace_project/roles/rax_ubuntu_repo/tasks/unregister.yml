@@ -1,0 +1,12 @@
+---
+- name: Uninstall rs-inventory
+  package:
+    name: rs-inventory
+    state: absent
+
+- name: Remove rs-inventory cron job
+  cron:
+    name: rs-inventory
+    cron_file: /etc/cron.daily/rs-inventory
+    state: absent
+...

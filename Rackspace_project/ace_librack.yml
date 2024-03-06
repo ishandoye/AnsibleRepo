@@ -1,0 +1,28 @@
+# To make use of this playbook import it prior any other playbook to be used
+# Example:
+# - import_playbook: ace_librack.yml
+---
+- name: Librack in ACE
+  hosts: localhost
+  gather_facts: no
+  vars:
+    index_url: 'https://artifacts.rackspace.net/artifactory/api/pypi/pypi/simple'
+  tasks:
+  - name: Install librack
+    block:
+    - name: Install librack from artifactory
+      pip:
+        name: librack
+        extra_args: --extra-index-url {{ index_url }}
+
+    - name: Librack verification
+      shell: python -c 'import librack; print(librack.VERSION)'
+      register: librack_version
+      failed_when: false
+
+    - name: Librack version
+      debug:
+        var: librack_version
+      changed_when: false
+    when: config_id is defined
+...

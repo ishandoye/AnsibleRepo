@@ -1,0 +1,23 @@
+---
+- name: Listing all enabled PHP modules
+  debug:
+    msg: "{{ php.php_enabled_modules }}"
+
+- name: Recording currently installed PHP modules
+  set_fact:
+    pre_installed_modules: "{{ php.php_enabled_modules }}"
+
+- name: Populate list of installed PHP packages
+  loop: "{{ packages }}"
+  set_fact:
+    php_packages: "{{ php_packages | default([]) + [item.name] }}"
+  when: "'php' in item.name"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Remove current and target PHP package from package list
+  set_fact:
+    php_packages: "{{ php_packages | difference([replace_with, installed_php]) }}"
+
+- name: Handle PHP packages with varying names
+  include: edge_cases.yml

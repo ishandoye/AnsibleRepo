@@ -1,0 +1,7 @@
+---
+- name: Sync time (Ubuntu 16)
+  command: /usr/sbin/ntpdate -u {{ rs_time_server_fqdn }}
+
+- name: Enable NTP based network time synchronization (Ubuntu 16)
+  command: /usr/bin/timedatectl set-ntp yes
+...

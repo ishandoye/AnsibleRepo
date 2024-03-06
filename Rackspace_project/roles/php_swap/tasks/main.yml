@@ -1,0 +1,24 @@
+---
+- name: Execution started
+  debug:
+    msg: "phpSwap execution started. Please submit any bugs/suggestions to https://github.rackspace.com/SupportTools/playbooks"
+
+- name: Verify that the OS is allowed
+  assert:
+    that:
+      - ansible_distribution_version not in os_block_list[ansible_os_family]
+      - ansible_distribution_major_version in os_allow_list[ansible_os_family]
+    fail_msg: "{{ ansible_distribution }} {{ ansible_distribution_version }} is not supported by this playbook"
+
+- name: Get Raxfacts
+  raxfacts:
+    facts:
+      - php
+      - webservers
+      - packages
+      - repositories
+  no_log: true
+
+- include: redhat.yml
+  when: ansible_os_family == "RedHat"
+

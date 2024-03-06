@@ -1,0 +1,22 @@
+---
+- name: Manage rack user
+  hosts: all
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: ACE pre-tasks
+      block:
+        - name: Get CORE data when using ACE
+          include_tasks: ace.yml
+        - name: Fail if a token is not provided
+          fail:
+            msg: "core_token is required"
+          failed_when: core_token is undefined
+      delegate_to: localhost
+      when: config_id is defined
+  tasks:
+    # Add remove: true as a var to remove rack user
+    - name: Execute rack user role
+      include_role:
+        name: rs_user
+...

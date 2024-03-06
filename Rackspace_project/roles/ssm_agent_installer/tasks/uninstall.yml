@@ -1,0 +1,15 @@
+---
+- name: End if SSM agent is not installed
+  block:
+    - name: Debug if SSM agent is not installed
+      debug:
+        msg: The SSM agent is not installed on this device
+
+    - name: End host
+      meta: end_host
+  when: "'amazon-ssm-agent' not in ansible_facts.packages"
+
+- name: Remove SSM agent package
+  package:
+    name: amazon-ssm-agent
+    state: absent

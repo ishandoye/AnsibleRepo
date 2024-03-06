@@ -1,0 +1,199 @@
+---
+# Gathers facts about Managed storage from servers and produces
+# a report of useful information about it
+
+# Have to do this via set_fact as otherwise facts set via vars/main.yml
+# aren't accessible properly in hostvars[host] in the report template
+- name: Initialize facts
+  set_fact:
+    sub_paths: []
+    bad_policy: []
+    dead_paths: []
+    error_paths: []
+    mounted_paths: []
+    lvm_paths: []
+    cluster_nodes: []
+    cluster_type: null
+    mpdevs: []
+    cluster_mpdevs: []
+    unused_mpdevs: []
+
+- name: Collect data from servers
+  include_role:
+    name: raxfacts
+  vars:
+    raxfacts_facts: "{{ required_facts }}"
+
+- name: Extract general data
+  block:
+    - name: Powerpath data
+      set_fact:
+        sub_paths: >-
+          {{
+            raxfacts.storage|json_query("multipath_devices[].subpaths[].name")|
+            default([])
+          }}
+        dead_paths: >-
+          {{ raxfacts.storage|
+            json_query("multipath_devices[?controller=='powerpath'][]
+            .subpaths[?path_state!='alive'][].name")
+          }}
+        error_paths: >-
+          {{ raxfacts.storage|
+            json_query("multipath_devices[].subpaths[?errors>`0`][].name") }}
+
+    - name: Multipathd data
+      set_fact:
+        dead_paths: >-
+          {{ dead_paths + raxfacts.storage|
+            json_query("multipath_devices[?controller=='multipathd'][]
+            .subpaths[?dm_state!='active'][].name")
+          }}
+
+    # The following tasks are constructed as jinja templates instead of
+    # standard Ansible loops, because when you run this against a lot of servers
+    # with a lot of SCSI paths on them:
+    # - performance is poor, due to how ansible executes each task in a loop
+    # - the output becomes huge, due to the cartesian products that are involved
+    - name: Find PowerPath devices with bad policy settings
+      set_fact:
+        bad_policy: >-
+          [
+            {%- for mpdev in raxfacts.storage|
+                json_query("multipath_devices[?controller=='powerpath'][]") -%}
+            {% if mpdev.subgroups[0].policy|lower not in valid_policies -%}
+            "{{ mpdev.name + ':' + mpdev.subgroups[0].policy }}",
+            {%- endif %}
+            {%- endfor -%}
+          ]
+
+    - name: Find directly mounted subpaths
+      set_fact:
+        mounted_paths: >-
+          [
+            {%- for path in sub_paths -%}
+            {% if raxfacts.setup.ansible_mounts|
+               selectattr('device', 'regex', '/dev/' + path + '\d?$')|list|
+               length > 0 -%}
+            "{{ path }}",
+            {%- endif %}
+            {%- endfor -%}
+          ]
+
+    - name: Find subpaths directly used by LVM
+      set_fact:
+        lvm_paths: >-
+          [
+            {%- for path in sub_paths -%}
+            {% if raxfacts.setup.ansible_lvm.pvs.keys()|
+               select('regex', '/dev/' + path + '\d?$')|list|length > 0 -%}
+            "{{ path }}",
+            {%- endif %}
+            {%- endfor -%}
+          ]
+
+    - name: Find multipath devices directly mounted or used as PVs
+      set_fact:
+        mpdevs: >-
+          [
+            {%- for mpdev in raxfacts.storage.multipath_devices -%}
+            {% if raxfacts.setup.ansible_mounts|
+                selectattr('device', 'regex', '/dev/' + mpdev.name + '\d?$')|
+                  list|length > 0 or
+                raxfacts.setup.ansible_lvm.pvs.keys()|
+                  select('regex', '/dev/' + mpdev.name + '\d?$')|list|
+                  length > 0 -%}
+            "{{ mpdev.name }}",
+            {%- endif %}
+            {%- endfor -%}
+          ]
+  when:
+    - raxfacts.storage
+    - raxfacts.storage.multipath_devices
+  delegate_to: localhost
+
+- name: Extract cluster data
+  include_tasks: cluster_data.yml
+  when:
+    - raxfacts.storage
+    - raxfacts.storage.multipath_devices
+    - raxfacts.cluster
+    - raxfacts.cluster.services
+
+- name: Check for Oracle RAC
+  command: pgrep -f asm_pmon_
+  register: ora_rac
+  failed_when: ora_rac.rc|int not in [0,1]
+  changed_when: false
+
+- name: Check for Oracle Standalone
+  when: ora_rac.rc|int != 0
+  command: pgrep -f ora_pmon_
+  register: ora_standalone
+  failed_when: ora_standalone.rc|int not in [0,1]
+  changed_when: false
+
+# This is the set of multipath devices not
+# - directly mounted
+# - used as an LVM PV
+# - used directly in the cluster config
+# Devices used by Oracle will still be listed here, and need to be
+# manually checked by a DBA
+- name: Calculate unused multipath devices
+  set_fact:
+    unused_mpdevs: >-
+      {{
+        raxfacts.storage|json_query('multipath_devices[].name')|
+        difference(mpdevs + cluster_mpdevs)
+      }}
+  when:
+    - raxfacts.storage
+    - raxfacts.storage.multipath_devices
+
+- name: Create results
+  set_fact:
+    results_output:
+      hostname: "{{ raxfacts.setup.ansible_fqdn }}"
+      storage_present: "{{ raxfacts.storage is not none }}"
+      cluster_type: >-
+        {%- if raxfacts.cluster -%}
+        {{ raxfacts.cluster.type }}
+        {%- elif ora_rac.rc|int == 0 -%}
+        ORACLE_RAC
+        {%- elif ora_standalone.rc|int == 0 -%}
+        ORACLE_STANDALONE
+        {%- else -%}
+        STANDALONE
+        {%- endif -%}
+      cluster_nodes: "{{ cluster_nodes|default([])|join(';') }}"
+      multipathd_running: >-
+        {{ raxfacts.storage.multipath_running|default(false) }}
+      multipath_version: >-
+        {{ raxfacts.storage.multipath_version|default('') }}
+      powerpath_running: >-
+        {{ raxfacts.storage.powerpath_running|default(false) }}
+      powerpath_version: >-
+        {{ raxfacts.storage.powermt_version|default('') }}
+      bad_pp_policy: "{{ bad_policy|default([])|join(';') }}"
+      dead_paths: "{{ dead_paths|default([])|join(';') }}"
+      paths_with_errors: "{{ error_paths|default([])|join(';') }}"
+      subpaths_directly_mounted: "{{ mounted_paths|default([])|join(';') }}"
+      subpaths_used_as_lvm_pvs: "{{ lvm_paths|default([])|join(';') }}"
+      used_pseudodevs: "{{ (mpdevs + cluster_mpdevs)|default([])|join(';') }}"
+      unused_pseudodevs: "{{ unused_mpdevs|default([])|join(';') }}"
+
+- name: Screen output
+  debug:
+    var: results_output
+  when: screen_output|bool
+
+- name: Write report file
+  template:
+    src: storage_report.csv.j2
+    dest: "{{ report_filename }}"
+  delegate_to: localhost
+  changed_when: false
+  run_once: true
+  become: false
+
+...

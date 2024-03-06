@@ -1,0 +1,30 @@
+---
+- name: Check if the uninstallation script exists
+  stat:
+    path: "{{ sophos_install_dir }}/uninstall.sh"
+  register: uninstall_script
+
+- name: Snapshot the current Sophos configuration  # noqa 301
+  shell: >
+    {{ sophos_bin_dir }}/savconfig -v --advanced >
+    {{ tmp_dir }}/savconfig.backup
+
+- name: Archive configs of old install
+  archive:
+    path:
+      - "{{ tmp_dir }}/savconfig.backup"
+      - "{{ backup_file }}"
+    dest: "{{ rack_dir }}/sophos-{{ ansible_date_time.iso8601 }}.tar.gz"
+
+- name: Runs uninstallation script
+  shell: "{{ sophos_install_dir }}/uninstall.sh <<<y"
+  args:
+    executable: /bin/bash
+  when: uninstall_script.stat.exists
+
+- name: Remove sophos installer package
+  package:
+    name: rs-sophosav-installer
+    state: absent
+
+...

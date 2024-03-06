@@ -1,0 +1,10 @@
+---
+# Create File With Device Permissions
+- name: Create a MyRackFile with an associated device "{{ rs_server|default("None") }}"
+  valkyrie_create:
+    device_id: "{{ rs_server }}"
+    name: "{{ myrackfile_name|default(omit) }}"
+    content: "{{ myrackfile_content }}"
+    rackertoken: "{{ rackertoken }}"
+  register: myrackfile_results
+...

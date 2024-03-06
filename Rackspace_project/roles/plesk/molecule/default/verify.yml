@@ -1,0 +1,16 @@
+---
+- name: Verify Plesk
+  gather_facts: false
+  hosts: all
+  tasks:
+    - name: Check Plesk listening port
+      uri:
+        validate_certs: false
+        url: "https://localhost:8443/login_up.php"
+      register: plesk_login
+      changed_when: false
+
+    - name: Validate Plesk login page returns OK
+      assert:
+        that: plesk_login.status == 200
+...

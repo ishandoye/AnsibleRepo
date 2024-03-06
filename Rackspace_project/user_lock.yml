@@ -1,0 +1,19 @@
+# Lock user, and remove from sudoers
+# Tested with Ansible 2.2.1.0
+
+- hosts: all
+  become: True
+  gather_facts: False
+
+  vars_prompt:
+    - name: username
+      prompt: "Username"
+      private: no
+    - name: ticket
+      prompt: "Ticket number (GECOS field will be updated with this)"
+      private: no
+
+  tasks:
+  - include_role:
+      name: user_lock
+...

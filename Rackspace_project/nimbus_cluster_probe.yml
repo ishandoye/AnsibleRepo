@@ -1,0 +1,9 @@
+---
+
+- name: Install Nimbus Cluster Probe
+  hosts: all
+  become: True
+  tasks:
+  - include_role:
+      name: nimbus_cluster_probe
+...

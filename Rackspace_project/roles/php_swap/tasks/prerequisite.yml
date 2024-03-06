@@ -1,0 +1,128 @@
+---
+- name: Fail if php executable cannot be found
+  fail:
+    msg: "PHP not installed, not in PATH or cli package not present"
+  when: not php or (not php.php_detected_path and not php.fpm_detected_path)
+
+- name: Check if Plesk is installed
+  shell: >-
+    set -o pipefail
+    yum list all disable-excludes=all sw-cp-server | grep sw-cp-server | wc -l
+  register: plesk_check
+  check_mode: false
+  args:
+    warn: false
+  changed_when: false
+  failed_when: false
+
+- name: fail when Plesk is installed
+  fail:
+    msg: "Sorry, Plesk PHP upgrades is not supported.."
+  when: plesk_check.stdout != "0"
+
+- name: Check for Magento binary and WordPress files (apache)
+  block:
+    - name: Check for Magento binary (apache)
+      find:
+        paths: "{{ item['documentroot'] }}"
+        patterns: "magento"
+        file_type: file
+        recurse: true
+      register: magento_binary_found
+      loop: "{{ webservers['apache']['vhosts'] | selectattr('documentroot', 'defined') | list }}"
+
+    - name: Fail if Magento detected (apache)
+      fail:
+        msg: "Magento was detected. This playbook will not run if Magento is installed."
+      when: item.matched > 0
+      loop: "{{ magento_binary_found.results }}"
+
+    - name: Check for WordPress login file (apache)
+      find:
+        paths: "{{ item['documentroot'] }}"
+        patterns: ["wp-login.php", "wp-settings.php", "wp-mail.php", "wp-cron.php"]
+        file_type: file
+        recurse: true
+      register: wordpress_login_found
+      loop: "{{ webservers['apache']['vhosts'] | selectattr('documentroot', 'defined') | list }}"
+
+    - name: Fail if WordPress detected (apache)
+      fail:
+        msg: "WordPress was detected. This playbook will not run if WordPress is installed."
+      when: item.matched > 0
+      loop: "{{ wordpress_login_found.results }}"
+  when: webservers and 'apache' in webservers
+
+- name: Check for Magento binary and WordPress files (nginx)
+  block:
+    - name: Check for Magento binary (nginx)
+      find:
+        paths: "{{ item['root'] }}"
+        patterns: "magento"
+        file_type: file
+        recurse: true
+      register: magento_binary_found
+      loop: "{{ webservers['nginx']['vhosts'] | selectattr('root', 'defined') | list }}"
+
+    - name: Fail if Magento detected (nginx)
+      fail:
+        msg: "Magento was detected. This playbook will not run if Magento is installed."
+      when: item.matched > 0
+      loop: "{{ magento_binary_found.results }}"
+
+    - name: Check for WordPress login file (nginx)
+      find:
+        paths: "{{ item['root'] }}"
+        patterns: ["wp-login.php", "wp-settings.php", "wp-mail.php", "wp-cron.php"]
+        file_type: file
+        recurse: true
+      register: wordpress_login_found
+      loop: "{{ webservers['nginx']['vhosts'] | selectattr('root', 'defined') | list }}"
+
+    - name: Fail if WordPress detected (nginx)
+      fail:
+        msg: "WordPress was detected. This playbook will not run if WordPress is installed."
+      when: item.matched > 0
+      loop: "{{ wordpress_login_found.results }}"
+  when: webservers and 'nginx' in webservers
+
+- name: Fail if PHP installed from remi-safe
+  fail:
+    msg: "remi-safe is unsupported. Aborting."
+  when: php.php_pkg_repo == "remi-safe"
+
+- name: Check target PHP version
+  fail:
+    msg: "Target PHP version not set; run with, e.g., --extra-vars \"replace_with=php56u\""
+  when: replace_with is not defined
+
+- name: Fail if target PHP is not a current package
+  fail:
+    msg: "{{ replace_with }} is not a supported PHP package. Options are: {{ php_toplevel_packages }}"
+  when: replace_with not in php_toplevel_packages
+
+- name: Check target PHP is available - fail if not available, skipped in check mode
+  yum:
+    list: "{{ replace_with }}"
+    disable_excludes: all
+  register: php_lookup_result
+  failed_when: php_lookup_result.results | length == 0
+  
+- name: PHP Warnings found
+  debug:
+    msg:
+      - "PHP Warnings found! You need to resolve them before proceeding with the actual package swap."
+  when: php.php_warnings_detected
+
+- name: Fail when PHP warnings are found (ignore in check mode)
+  fail:
+    msg: "PHP Warnings found! You need to resolve them in order to proceed."
+  when: php.php_warnings_detected and not ansible_check_mode
+
+- name: PHP-FPM configuration test failed message
+  fail:
+    msg: "PHP-FPM configuration test failed. You will need to manually fix the errors."
+  when:
+    - php.fpm_running
+    - php.fpm_config_has_errors
+    - ansible_check_mode

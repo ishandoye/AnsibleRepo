@@ -1,0 +1,3 @@
+---
+JOINACCT: "{{ int_username }}"
+JOINPWD: "{{ int_password }}"

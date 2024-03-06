@@ -1,0 +1,18 @@
+---
+
+interconnect_node_1: 10.10.10.5
+interconnect_node_2: 10.10.10.6
+bonding_script_locations:
+  - /home/rack/.adc-ansible/bonding.py
+  - /home/rack/.adc5/bonding/bonding.py
+already_bonded: >-
+  {{
+    (ansible_bond1 is defined and
+      (ansible_bond1.ipv4.address == interconnect_node_1 or
+      ansible_bond1.ipv4.address == interconnect_node_2))
+  }}
+network_service: >-
+  {{
+    (ansible_distribution_major_version|int == 6)|ternary('network', 'NetworkManager')
+  }}
+...

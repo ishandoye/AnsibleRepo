@@ -1,0 +1,217 @@
+---
+- name: Prepare containers for testing
+  hosts: all
+  gather_facts: true
+  vars:
+    obs_url: >-
+      http://mirror.rackspace.com/opensuse/repositories/home:/holland-backup
+    rax_mirror_base: https://rax.mirror.rackspace.com
+    rax_release_rpm: >-
+      rax-release-rackspace-latest-{{
+        ansible_distribution_major_version
+      }}.noarch.rpm
+    rax_deb_url: >-
+      {{ rax_mirror_base }}/{{ ansible_distribution | lower }}
+    rax_debian_key: "rackspace-{{ ansible_distribution_release }}-keyring.gpg"
+    rax_keys:
+      buster: "{{ rax_debian_key }}"
+      bullseye: "{{ rax_debian_key }}"
+      bionic: "rackspace-ubuntu-archive-keyring.gpg"
+      focal: "rackspace-ubuntu-focal-key.gpg"
+      jammy: "rackspace-ubuntu-jammy-keyring.gpg"
+    rax_key_filename: >-
+      {{
+        (ansible_distribution_release == "jammy") |
+        ternary("rax.mirror.gpg", "rax.mirror.asc")
+      }}
+    holland_conf_backups:
+      - /etc/holland/holland.conf
+      - /etc/holland/backupsets/default.conf
+  tasks:
+    - name: Get current package list
+      ansible.builtin.package_facts:
+
+    - name: Setup Red Hat based hosts
+      block:
+        - name: Install rax release rpm
+          ansible.builtin.package:
+            name: "{{ rax_mirror_base }}/release/{{ rax_release_rpm }}"
+            state: present
+            disable_gpg_check: true
+
+        - name: Install epel release
+          ansible.builtin.package:
+            name: epel-release-rackspace
+            state: present
+          when: ansible_distribution_major_version | int > 6
+      when: ansible_os_family == 'RedHat'
+
+    - name: Setup Debian based hosts
+      block:
+        - name: Ensure apt keyrings folder exists
+          ansible.builtin.file:
+            path: /etc/apt/keyrings
+            state: directory
+            owner: root
+            group: root
+            mode: '0755'
+
+        - name: Get apt keys
+          ansible.builtin.get_url:
+            url: >-
+              {{ rax_deb_url }}/{{ rax_keys[ansible_distribution_release] }}
+            dest: /etc/apt/keyrings/{{ rax_key_filename }}
+            force: true
+            owner: root
+            group: root
+            mode: '0644'
+
+        - name: Add rax repo
+          ansible.builtin.apt_repository:
+            filename: rax.mirror.rackspace.com
+            mode: '0644'
+            state: present
+            install_python_apt: true
+            update_cache: true
+            repo: >-
+              deb
+              [arch=amd64 signed-by=/etc/apt/keyrings/{{ rax_key_filename }}]
+              {{ rax_deb_url }} {{ ansible_distribution_release }} main
+      when: ansible_os_family == 'Debian'
+
+    - name: Preinstall rs-holland-config if required
+      block:
+        # holland packages on U20 are missing setting dependencies, so we
+        # need to manually install them first
+        - name: Install missing dependencies for holland on Ubuntu 20.04
+          ansible.builtin.package:
+            name:
+              - python3-setuptools
+              - python3-configobj
+              - python3-pymysql
+            state: present
+          when: ansible_distribution_major_version | int == 20
+
+        - name: Configure obs mirror on Ubuntu 22.04
+          block:
+            - name: Get apt key for OBS repo
+              ansible.builtin.get_url:
+                url: "{{ obs_url }}/xUbuntu_22.04/Release.key"
+                dest: /etc/apt/keyrings/obs-holland.asc
+                force: true
+                owner: root
+                group: root
+                mode: '0644'
+
+            - name: Add holland OBS repo
+              ansible.builtin.apt_repository:
+                filename: obs-holland
+                mode: '0644'
+                state: present
+                update_cache: true
+                repo: >-
+                  deb [arch=amd64 signed-by=/etc/apt/keyrings/obs-holland.asc]
+                  {{ obs_url }}/xUbuntu_22.04 ./
+          when: ansible_distribution_release == "jammy"
+
+        - name: Install rs-holland-config
+          ansible.builtin.package:
+            name: rs-holland-config
+            state: present
+
+        - name: Replace holland with rs-holland-py3 if needed
+          block:
+            - name: Backup holland cfg files
+              ansible.builtin.copy:
+                src: "{{ item }}"
+                dest: "{{ item }}.prepare.backup"
+                remote_src: true
+                mode: '0640'
+                owner: root
+                group: root
+              loop: "{{ holland_conf_backups }}"
+
+            - name: Uninstall holland python2
+              ansible.builtin.package:
+                name:
+                  - holland
+                  - holland-common
+                  - holland-mysql
+                  - holland-mysqldump
+                  - holland-commvault
+                  - rs-holland-config
+                state: absent
+
+            - name: Install holland-py3
+              ansible.builtin.package:
+                name:
+                  - rs-holland-py3
+                  - rs-holland-py3-common
+                  - rs-holland-py3-mysql
+                  - rs-holland-py3-mysqldump
+                  - rs-holland-py3-commvault
+                state: present
+
+            - name: Restore holland cfg files
+              ansible.builtin.copy:
+                src: "{{ item }}.prepare.backup"
+                dest: "{{ item }}"
+                remote_src: true
+                mode: '0640'
+                owner: root
+                group: root
+              loop: "{{ holland_conf_backups }}"
+
+            - name: Remove backup files
+              ansible.builtin.file:
+                path: "{{ item }}.prepare.backup"
+                state: absent
+              loop: "{{ holland_conf_backups }}"
+          when: el7_py3 is defined
+
+        - name: Create additional backupset
+          ansible.builtin.command:
+            cmd: >-
+              holland mk-config mysqldump
+              --file /etc/holland/backupsets/extra.conf
+          args:
+            creates: /etc/holland/backupsets/extra.conf
+
+        - name: Update holland config to use extra backupset
+          community.general.ini_file:
+            path: /etc/holland/holland.conf
+            create: false
+            section: holland
+            option: backupsets
+            value: 'default, extra'
+            state: present
+
+        - name: Add dummy line to /etc/holland/providers/mysqldump.conf
+          ansible.builtin.lineinfile:
+            path: /etc/holland/providers/mysqldump.conf
+            state: present
+            line: '# Dummy test line'
+            create: false
+            insertafter: EOF
+      when:
+        - has_rs_holland_cfg | default(false)
+        - install_rs_holland_cfg | bool
+        - not 'rs-holland-config' in packages
+        - not 'rs-holland-py3' in packages
+
+    # Remove the rax repo again, so we can test the role installs it properly
+    - name: Remove rax repo (RHEL)
+      ansible.builtin.package:
+        name: rax-release-rackspace
+        state: absent
+      when: ansible_os_family == 'RedHat'
+
+    - name: Remove rax repo (Debian/Ubuntu)
+      ansible.builtin.apt_repository:
+        state: absent
+        update_cache: true
+        repo: >-
+          deb
+          [arch=amd64 signed-by=/etc/apt/keyrings/{{ rax_key_filename }}]
+          {{ rax_deb_url }} {{ ansible_distribution_release }} main
+      when: ansible_os_family == "Debian"

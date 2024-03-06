@@ -1,0 +1,11 @@
+---
+- name: restart sav-protect
+  service:
+    name: sav-protect
+    state: restarted
+
+- name: Remove sophos installer script
+  file:
+    path: "{{ sophos_installer_script_bin }}"
+    state: absent
+...

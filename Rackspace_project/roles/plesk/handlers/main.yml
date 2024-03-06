@@ -1,0 +1,10 @@
+---
+- name: Enable yum-cron
+  service:
+    name: yum-cron
+    enabled: true
+    state: started
+
+- name: Enable auter
+  command: auter --enable
+...

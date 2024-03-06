@@ -1,0 +1,28 @@
+# Molecule managed
+
+{% if item.registry is defined %}
+FROM {{ item.registry.url }}/{{ item.image }}
+{% else %}
+FROM {{ item.image }}
+{% endif %}
+
+{% if "centos:6" is in item.image %}
+RUN sed -i -e 's/mirrorlist=/#mirrorlist=/' \
+        -e 's/#baseurl=http:\/\/mirror.centos.org/baseurl=http:\/\/mirror.rackspace.com\/centos-vault/' \
+        /etc/yum.repos.d/CentOS-Base.repo && \
+    yum install -y https://rax.mirror.rackspace.com/release/centos-release-rackspace-6-1.el6_10.noarch.rpm && \
+    yum install -y https://archives.fedoraproject.org/pub/archive/epel/6/x86_64/epel-release-6-8.noarch.rpm && \
+    yum install -y upstart && \
+    sed -i -e 's/mirrorlist=/#mirrorlist=/' \
+        -e 's/#baseurl=http:\/\/download.fedoraproject.org\/pub/baseurl=http:\/\/archives.fedoraproject.org\/pub\/archive/' \
+        /etc/yum.repos.d/epel.repo
+{% endif %}
+
+ RUN if [ $(command -v apt-get) ]; then . /etc/os-release; [ $VERSION_ID = "20.04" -o $VERSION_ID = "22.04" ] && SNAKE="python3" || SNAKE="python"; \
+        apt-get update && apt-get install -y $SNAKE sudo bash ca-certificates iproute2 rsync && apt-get clean; \
+     elif [ $(command -v dnf) ]; then dnf makecache && dnf --assumeyes install iproute python3 sudo python3-devel python3-dnf bash rsync && dnf clean all; \
+     elif [ $(command -v yum) ]; then yum makecache fast && yum install -y python iproute sudo yum-plugin-ovl bash rsync && sed -i 's/plugins=0/plugins=1/g' /etc/yum.conf && yum clean all; \
+     elif [ $(command -v zypper) ]; then zypper refresh && zypper install -y python3 sudo bash python3-xml rsync && zypper clean -a; fi
+{% if item.image.startswith(("ubuntu:18", "ubuntu:2")) %}
+RUN apt-get install -y systemd-sysv
+{% endif %}

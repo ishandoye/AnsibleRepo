@@ -1,0 +1,48 @@
+---
+- name: Make sure server is supported
+  fail:
+    msg: >
+      "This playbook does not support {{ ansible_distribution }}"
+      "{{ ansible_distribution_major_version }}"
+  failed_when: >
+    ansible_distribution|lower in supported_distros|list and
+      ansible_distribution_major_version|int <
+      supported_distros[ansible_distribution|lower]|int
+
+- name: Validate if sophos is already installed
+  include_tasks: validation.yml
+
+- name: Perform connectivity tests
+  include_tasks: connectivity.yml
+  when: >
+    connectivity_check is defined and
+    remove is undefined
+
+- name: Perform Remove/Install
+  block:
+    - name: Installation status
+      debug:
+        msg: "Sophos is not installed"
+      when: remove is defined and not sophos_installed.stat.exists
+
+    - name: Remove sophos
+      include_tasks: remove.yml
+      when: >
+        ( sophos_installed.stat.exists and
+          ( remove is defined or
+            force is defined ) )
+
+    - name: Installation status
+      debug:
+        msg: "Sophos is already installed"
+      when: remove is undefined and sophos_installed.stat.exists
+
+    - name: Install sophos
+      import_tasks: install.yml
+      when: >
+        ( remove is undefined and
+          ( not sophos_installed.stat.exists or
+            force is defined ) )
+  when: >
+    connectivity_check is undefined
+...

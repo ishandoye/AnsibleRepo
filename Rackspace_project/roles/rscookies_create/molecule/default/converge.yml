@@ -1,0 +1,7 @@
+---
+- name: Test Dedicated Servers
+  hosts: all
+  roles:
+    - role: dummy_raxfacts
+    - role: rscookies_create
+...

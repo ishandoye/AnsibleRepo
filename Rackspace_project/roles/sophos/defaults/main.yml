@@ -1,0 +1,37 @@
+---
+sophos_excluded_paths:
+  - /boot/efi/
+  - /dev/shm/
+  - /opt/app/oracle/
+  - /opt/oracle/
+  - /opt/simpana/
+  - /oratmp/
+  - /run/
+  - /tmp/hsperfdata_oracle/
+  - /u01/app/
+  - /u02/oradata/
+  - /u03/oradata/
+  - /usr/local/pgsql/data/
+  - /usr/local/psa/
+  - /var/drweb/
+  - /var/hsphere/
+  - /var/lib/lxcfs/
+  - /var/lib/mysql/
+  - /var/lib/mysqlbackup/
+  - /var/lib/mysqllogs/
+  - /var/lib/mysqltmp/
+  - /var/lib/pgsql/
+  - /var/lock/
+  - /var/log/
+  - /var/qmail/
+  - /var/run/
+  - /var/spool/
+  - /var/tmp/.oracle/
+
+sophos_excluded_globs:
+  - /tmp/clamav*
+  - /tmp/odeiavir*
+  - /var/www/vhosts/*/logs/*_log*
+  - /var/www/vhosts/system/*/logs/*log*
+  - /var/www/vhosts/system/*/statistics/logs/*log*
+...

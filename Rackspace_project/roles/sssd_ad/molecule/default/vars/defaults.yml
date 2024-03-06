@@ -1,0 +1,12 @@
+---
+# Default var values for molecule tests
+ALLOW_GROUPS: ""
+DC: "unknown"
+DNSSERVERS: ""
+ENUMERATE: "n"
+WORKGROUP: "magic"
+default_allow_groups:
+  intensive: "{{ rs_customer }}-RAX,{{ rs_customer }}-AllUsers"
+  globalrs: "{{ rs_customer}}-AllUsers@globalrs.rack.space"
+  customer: "n"
+...

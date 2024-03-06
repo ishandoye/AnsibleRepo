@@ -1,0 +1,60 @@
+---
+
+# Unable to use block/rescue as Stepladders JSON callback does not parse `fatal` in this circumstance well
+- name: Download the latest configsnap version
+  get_url:
+    url: https://raw.githubusercontent.com/rackerlabs/configsnap/33f4eab1c3e04f5b826805932da2c524a940d816/configsnap
+    dest: /tmp/configsnap
+    mode: 0755
+  become: false
+  delegate_to: 127.0.0.1
+  register: download_configsnap
+  run_once: true
+  ignore_errors: true
+
+- name: Copy fresh configsnap script to remote device
+  copy:
+    src: /tmp/configsnap
+    dest: /home/rack/configsnap
+    mode: 0755
+  when: download_configsnap is not failed
+
+- name: Copy local configsnap script to remote device
+  copy:
+    src: configsnap
+    dest: /home/rack/configsnap
+    mode: 0755
+  when: download_configsnap is failed
+
+- name: Create the ticket directory if it doesn't exist
+  file:
+    path: "/home/rack/{{ ticket }}"
+    state: directory
+    mode: 0755
+  register: ticket_dir
+
+- name: Check if configsnap directory exists
+  stat:
+    path: "/home/rack/{{ ticket }}/configsnap"
+  register: configsnap_dir
+
+- name: Backup configsnap directory if it does exist
+  copy:
+    src: "/home/rack/{{ ticket }}/configsnap"
+    dest: "/home/rack/{{ ticket }}/configsnap_{{ lookup('pipe', 'date +%Y%m%d-%H%M') }}"
+    remote_src: true
+  when:
+    - force|bool
+    - configsnap_dir.stat.exists
+
+- name: Delete existing configsnap directory
+  file:
+    path: "/home/rack/{{ ticket }}/configsnap"
+    state: absent
+  when:
+    - force|bool
+    - configsnap_dir.stat.exists
+
+- name: Run configsnap
+  command: "{{ discovered_interpreter_python }} /home/rack/configsnap -t {{ ticket }} -p {{ phase }} -d /home/rack"
+  changed_when: false

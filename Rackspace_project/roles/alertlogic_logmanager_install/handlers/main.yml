@@ -1,0 +1,17 @@
+---
+- name: restart al-agent
+  service:
+    name: al-agent
+    state: restarted
+    enabled: "yes"
+
+- name: restart {{ syslog_daemon }}
+  service:
+    name: "{{ syslog_daemon }}"
+    state: restarted
+
+- name: Cleanup remote pkg
+  file:
+    path: "{{ al_pkg_file }}"
+    state: absent
+...

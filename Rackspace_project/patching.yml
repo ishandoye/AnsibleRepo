@@ -1,0 +1,36 @@
+---
+- name: Patching(RHN/Spacewalk) registration (cache)
+  become: "yes"
+  hosts: all
+  gather_facts: "yes"
+  pre_tasks:
+  - name: Changes when using ACE
+    block:
+      - name: Get CORE data when using ACE
+        include_tasks: ace.yml
+      - name: Create token cache from variable rhn_token
+        copy:
+          content: "{{ rhn_token }}"
+          dest: /tmp/rhnapi_token
+          mode: 0664
+    when: config_id is defined
+    delegate_to: localhost
+  tasks:
+    - name: Red Hat based distros
+      include_role:
+        name: rhui
+      vars:
+        authenticate: "no"
+      when: >
+        ( ansible_os_family|lower in ['redhat'] and
+          ansible_distribution_major_version in ['6', '7', '8'] )
+
+    - name: Ubuntu distros
+      include_role:
+        name: rax_ubuntu_repo
+      vars:
+        authenticate: "no"
+      when: >
+        ( ansible_distribution|lower in ['ubuntu'] and
+          ansible_distribution_version in ['14.04', '16.04'] )
+...

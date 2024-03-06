@@ -1,0 +1,4 @@
+---
+DC: "{{ intensive_dc }}"
+JOINACCT: "{{ int_username }}"
+JOINPWD: "{{ int_password }}"

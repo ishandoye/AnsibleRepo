@@ -1,0 +1,47 @@
+---
+dependency:
+  name: galaxy
+  enabled: false
+
+driver:
+  name: docker
+
+lint: |
+  set -e
+  yamllint .
+
+platforms:
+  - name: rscookies_c6
+    image: docker.artifacts.rackspace.net/centos:6
+
+  - name: rscookies_c7
+    image: docker.artifacts.rackspace.net/centos:7
+
+  - name: rscookies_c8
+    image: docker.artifacts.rackspace.net/centos:8
+
+  - name: rscookies_u16
+    image: docker.artifacts.rackspace.net/ubuntu:16.04
+
+  - name: rscookies_u18
+    image: docker.artifacts.rackspace.net/ubuntu:18.04
+
+provisioner:
+  name: ansible
+
+scenario:
+  name: remove
+  test_sequence:
+    - syntax
+    - destroy
+    - create
+    - prepare
+    - converge
+    - side_effect
+    - verify
+    - destroy
+
+verifier:
+  name: ansible
+  enabled: true
+...

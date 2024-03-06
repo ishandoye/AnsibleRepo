@@ -1,0 +1,9 @@
+---
+- name: Test cohesity agent
+  hosts: all
+  gather_facts: true
+  roles:
+    - role: cohesity_agent
+      vars:
+        role_action: install
+        force_reinstall: true

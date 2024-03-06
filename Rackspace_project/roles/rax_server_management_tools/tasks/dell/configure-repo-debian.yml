@@ -1,0 +1,13 @@
+---
+
+- name: Import dell gpg keys
+  apt_key:
+    state: present
+    keyserver: pool.sks-keyservers.net
+    id: 1285491434D8786F
+
+- name: Configure dell apt repo
+  apt_repository:
+    repo: deb {{ dell_ubuntu_url }} {{ ansible_distribution_release }} openmanage
+    state: present
+    filename: dell-omsa

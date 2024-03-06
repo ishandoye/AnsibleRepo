@@ -1,0 +1,20 @@
+---
+- name: Test Dedicated Servers
+  hosts: dedicated
+  tasks:
+    #- name: Ensure Sudoers file exists
+    #  copy:
+    #    content: ""
+    #    dest: /etc/sudoers
+    #    force: no
+    #    group: root
+    #    owner: root
+    #    mode: 0440
+
+    - include_role:
+        name: "{{ inc_role_name }}"
+      with_items:
+        - dummy_raxfacts
+        - molecule_container_prep
+      loop_control:
+        loop_var: inc_role_name

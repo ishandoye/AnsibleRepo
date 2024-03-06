@@ -1,0 +1,20 @@
+---
+schemes:
+  plain: "http"
+  secure: "https"
+repo_name: "rax.mirror.rackspace.com"
+plain_repo_url: "{{ schemes.plain }}://{{ repo_name }}/ubuntu"
+repo_url: "{{ schemes.secure }}://{{ repo_name }}/ubuntu"
+pub_path: "{{ repo_url }}/rackspace-ubuntu-archive-keyring.gpg"
+api_host: "https://api.rhn.rackspace.com"
+rpc_url: "{{ api_host }}/cgi-bin/rpc/api.cgi"
+api_url: "https://software.rhn.rackspace.com/cgi-bin/api.cgi"
+api_actions:
+  'auth': 'auth.Auth'
+  'verify': 'auth.verifyAuth'
+  'adc': 'user.adc'
+  'inventory': 'inventory.NewServerReg'
+cache_file: "/tmp/rhnapi_token"
+rsinv_cmd: "/usr/sbin/rs-inventory"
+rsinv_conf: "/etc/rs-inventory.cfg"
+...

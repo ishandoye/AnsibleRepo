@@ -1,0 +1,13 @@
+---
+- name: Configure the agent
+  shell: /etc/init.d/al-agent configure --host {{ al_host }}
+
+- name: Register the agent
+  shell: >
+    /etc/init.d/al-agent provision \
+      --key {{ registration_key }} \
+      --inst-type host
+  notify: restart al-agent
+  failed_when: False
+  register: al_registration
+...

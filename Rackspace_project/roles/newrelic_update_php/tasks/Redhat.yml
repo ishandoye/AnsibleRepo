@@ -1,0 +1,10 @@
+---
+- name: Configure Repository Redhat/Centos
+  yum:
+    name: 'https://yum.newrelic.com/pub/newrelic/el5/x86_64/newrelic-repo-5-3.noarch.rpm'
+    state: present
+
+- name: RedHat | Install New Relic PHP Agent
+  yum:
+    pkg: newrelic-php5
+    state: latest

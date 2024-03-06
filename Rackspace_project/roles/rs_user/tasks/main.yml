@@ -1,0 +1,13 @@
+---
+- name: "Verify Core Token has been presented"
+  fail: msg="You must pass in your core token using the 'core_token' variable"
+  when: core_token is not defined
+
+- name: Remove rack user
+  include_tasks: remove.yml
+  when: remove|bool
+
+- name: Create rack user
+  include_tasks: create.yml
+  when: not remove|bool
+...

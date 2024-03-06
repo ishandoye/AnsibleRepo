@@ -1,0 +1,14 @@
+---
+- name: Test Nimbus with a force install
+  hosts: all
+  tasks:
+    - name: Include dummy Rackspace info
+      include_role:
+        name: dummy_raxfacts
+
+    - name: Execute nimbus role
+      include_role:
+        name: nimbus
+      vars:
+        force: true
+        push: true

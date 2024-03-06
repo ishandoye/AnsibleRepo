@@ -1,0 +1,66 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Include role vars
+      include_vars: ../../vars/main.yml
+
+    - name: Get installed packages
+      package_facts:
+        manager: auto
+
+    - name: Verify if rs-sophosav-installer is present
+      assert:
+        that: >
+          ('rs-sophosav-installer' in ansible_facts.packages)|bool ==
+          use_installer_pkg
+
+    # This value is:
+    #  - true for RHEL6 + Ubuntu 14.04
+    #  - false otherwise
+    - name: Set expected fanotify status
+      set_fact:
+        fanotify_disabled: >-
+          {{
+            ((ansible_os_family == "RedHat" and
+              ansible_distribution_major_version|int < 7) or
+            (ansible_distribution == "Ubuntu" and
+              ansible_distribution_major_version|int < 16
+            ))|bool
+          }}
+
+    - name: Get installed Sophos status
+      command: "{{ sophos_bin_dir }}/savdstatus"
+      changed_when: false
+      register: savdstatus_rst
+      failed_when: >-
+        savdstatus_rst.stdout is not search('(and|but) on-access') or
+        savdstatus_rst.rc not in [0, 4]
+
+    - name: Get DisableFanotify
+      command: "{{ sophos_bin_dir }}/savconfig get DisableFanotify"
+      changed_when: false
+      register: DisableFanotify
+
+    - name: Get PreferFanotify
+      command: "{{ sophos_bin_dir }}/savconfig get PreferFanotify"
+      changed_when: false
+      register: PreferFanotify
+
+    - name: Verify on-access is enabled
+      assert:
+        that: "'and on-access' in savdstatus_rst.stdout_lines[0]"
+        fail_msg: "{{ savdstatus_rst.stdout_lines[0] }}"
+
+    - name: Verify DisableFanotify is false
+      assert:
+        that: DisableFanotify.stdout|lower == fanotify_disabled|string|lower
+        fail_msg: "DisableFanotify: {{ DisableFanotify.stdout }}"
+
+    - name: Verify PreferFanotify is true
+      assert:
+        that: >
+          PreferFanotify.stdout|lower == (not fanotify_disabled)|string|lower
+        fail_msg: "PreferFanotify: {{ PreferFanotify.stdout }}"
+...

@@ -1,0 +1,170 @@
+---
+rs_ctkapi_info:
+  account_manager: Ginger Lee
+  account_name: Linux Support Test Account
+  account_num: '27329'
+  account_service_level: Managed
+  admin_pass: NANws1fB2oVg
+  admin_user: root
+  bdc: Ginger Lee
+  behind: []
+  datacenter: ORD1
+  dmgs: 'Device owner: Ryan Stark
+
+    Device owner Desk Phone: 506-1112
+
+    Device owner Cell Phone: 234-567-9746
+
+    Device owner Email: rstark@rackspace.com
+
+    Device owner Manager: Keith Ross
+
+    Device owner Manager Email: keith.ross@rackspace.com
+
+    Device owner Department: Engine Room Linux Support
+
+
+    SECURITY / APPROVALS / PERMISSIONS / CHANGE CONTROL (DEVICE LEVEL)
+
+
+    ============================
+
+
+    (Any specific compliance codes they are meeting (PCI, HIPPA, etc))
+
+
+    (Tasks requiring specific approvals)
+
+
+    ============================
+
+
+    LOGIN CONSIDERATION / NOTES (DEVICE LEVEL)
+
+
+    ============================
+
+
+    (Special login considerations/notes)
+
+
+    ============================
+
+
+    SPECIAL NOTES (DEVICE LEVEL)
+
+
+    ============================
+
+
+    (Relevant device level notes)
+
+
+    ============================
+
+
+    DEVICE FUNCTION (DEVICE LEVEL)
+
+
+    ============================
+
+
+    Ubuntu testing VM for Linux Support
+
+
+    ============================
+
+
+    Device Management Guidelines updated by Ryan Stark on 2015/05/26
+
+    '
+  drac: null
+  drac_gateway: null
+  drac_pass: []
+  drac_user: []
+  drac_vlan: null
+  failover_device: null
+  gateway: 173.203.39.89
+  has_managed_backup: true
+  icon_path: https://28616ea5aab979dce92c-69a5bc1f8c3c585c4f658970ef961bb7.ssl.cf2.rackcdn.com/vmlinux.gif
+  in_front:
+    - 860007
+    - 859998
+  ip_addresses:
+    - 10.132.99.94
+    - 162.242.180.160
+    - 173.203.39.88
+  is_cluster: false
+  lead_tech: null
+  login_method: Password Auth
+  nat_comments: []
+  netmask: 255.255.255.248
+  nickname: Ubuntu 14.04
+  online_date: '2015-06-16 15:40:16'
+  os_type: Linux
+  os_version: Ubuntu 14.04 LTS
+  platform_model: Virtual Machine Linux
+  platform_name: Virtual Machine Linux
+  port: []
+  primary_ip: 173.203.39.88
+  primary_userid: rstark
+  primary_userid_password: 2QacIKQqvQEa
+  private_gateway: 172.24.16.1
+  private_ip: 172.24.16.71
+  private_netmask: 255.255.252.0
+  protocol: []
+  rack_password: B6UaXqfyRbM3
+  rba_login_user: ''
+  rba_login_user_password: ''
+  root_method: Default (su-)
+  root_method_id:
+    attributes: https://ws.core.rackspace.com/ctkapi/attributes/Computer.ComputerRootAccess
+    class_name: Computer.ComputerRootAccess
+    class_type: Value_Table
+    description: Default (su-)
+    id: 1
+    load_value: id
+    methods: https://ws.core.rackspace.com/ctkapi/methods/Computer.ComputerRootAccess
+    name: Default (su-)
+    values: https://ws.core.rackspace.com/ctkapi/values/Computer.ComputerRootAccess
+  segment: ENT Z
+  server: 300005
+  server_name: 300005-ubuntu14.rackersupport.com
+  service_level_name: Managed
+  service_levels:
+    attribute: service_products
+    subattributes:
+      - label: Hardware Management
+        value: Rackspace  Managed
+      - label: DC Level
+        value: Rackspace Standard
+      - label: Application Management
+        value: Customer    Managed
+      - label: OS Management
+        value: Rackspace   Managed
+  servicenet_ips:
+    - 10.132.99.94
+  servicenet_vlan_ids:
+    - 1594
+  ssh_key_passphrase: ''
+  ssh_key_private: ''
+  status: Segment Configuration
+  status_id: 9
+  team: ENTZ-7MIX
+rs_customer: '27329'
+rs_datacenter: ORD1
+rs_device_id: '300005'
+rs_device_name: 300005-ubuntu14.rackersupport.com
+rs_target_sla: Managed
+rs_obm_ip: null
+rs_obm_pass: null
+rs_obm_user: null
+rs_ohthree_info: null
+rs_os_sku: Ubuntu 14.04 LTS
+rs_platform: Virtual Machine
+rs_platform_vendor: VMWare
+rs_public_cloud_info: null
+rs_region: ORD
+rs_server: '300005'
+rs_server_type: core
+...

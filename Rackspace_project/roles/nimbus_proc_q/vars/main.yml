@@ -1,0 +1,10 @@
+nim_cdm_conf: "cdm.cfg"
+conf_path1: "/opt/nimsoft/probes/system/cdm"
+conf_path2: "/opt/nimbus/probes/system/cdm"
+cpu_count: "{{ ansible_processor_cores * ansible_processor_count }}"
+proc_q_len: "{{ cpu_count | int * 4 }}"
+error_is_active: "no"
+warning_is_active: "no"
+cpu_warning: {"cpu": {"alarm": { "error": {"active": "{{ warning_is_active }}" , "threshold": "{{ cpu_error_threshold }}" }}}}
+cpu_error: {"cpu": {"alarm": { "warning": {"active": "{{ error_is_active }}" , "threshold": "{{ cpu_warning_threshold }}" }}}}
+cpu_proc_q_len: {"cpu": {"specific": { "proc_q_len": {"active": "yes" , "threshold": "{{ proc_q_len }}" }}}}

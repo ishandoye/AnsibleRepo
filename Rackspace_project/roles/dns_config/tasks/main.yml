@@ -1,0 +1,45 @@
+---
+- name: Verify Region ({{ region_name }})
+  fail:
+    msg: Region [ {{ region_name }} ] not found in 'all_dcnames' list
+  failed_when: >
+    (region_name not in all_dcnames)
+
+- name: Get exec node distribution
+  become: no
+  delegate_to: localhost
+  setup:
+    filter: ansible_distribution
+    gather_subset: min
+  register: dns_exec_dist
+
+- name: Get DNS IPs
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - files:
+      - "dns_{{ dns_exec_dist.ansible_facts.ansible_distribution|lower }}.yml"
+      - "dns_default.yml"
+
+- name: Ensure RAX DNSs IPs and search domain are in resolver config file
+  template:
+    src: resolv.conf
+    dest: "{{ resolv_file }}"
+    mode: 0644
+    unsafe_writes:
+      "{{ True if ansible_virtualization_type == 'docker' else False }}"
+
+- name: Add Rackspace Custom NetworkManager Config (EL7)
+  template:
+    src: NetworkManager_rackspace.conf
+    dest: /etc/NetworkManager/conf.d/rackspace.conf
+    mode: 0644
+  when: ansible_os_family == "RedHat"
+     and ansible_distribution_major_version == '7'
+
+- name: Verify the server can resolve domains
+  getent:
+    database: ahostsv4
+    key: "{{ check_domain }}"
+  register: dns_verify_getent
+
+...

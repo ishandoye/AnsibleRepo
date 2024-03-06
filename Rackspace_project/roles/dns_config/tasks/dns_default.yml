@@ -1,0 +1,22 @@
+---
+- name: Get primary and secondary IP via getent module
+  become: no
+  delegate_to: localhost
+  getent:
+    database: ahostsv4
+    key: "{{ dns_fqdn }}"
+  loop:
+    - "{{ dns_primary_fqdn }}"
+    - "{{ dns_secondary_fqdn }}"
+  loop_control:
+    loop_var: dns_fqdn
+  register: dns_via_getent
+
+- name: Extract IP addresses
+  set_fact:
+    dns_ips: "{{ dns_ips |default([]) +
+      dns_getent_ip.ansible_facts.getent_ahostsv4.keys()|list }}"
+  loop: "{{ dns_via_getent.results | flatten(levels=1) }}"
+  loop_control:
+    loop_var: dns_getent_ip
+...

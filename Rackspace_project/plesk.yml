@@ -1,0 +1,10 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: Run Plesk role
+      include_role:
+        name: plesk
+      vars:
+        release_tier: stable
+...

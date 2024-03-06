@@ -1,0 +1,58 @@
+# Add user, and optionally add sudo rule
+# Tested with Ansible 2.2.1.0
+#
+# A password hash can be obtained with the output of the
+# following command which requires python's passlib library.
+#
+# $ python3 -c "from passlib.hash import sha512_crypt; import getpass; print(sha512_crypt.encrypt(getpass.getpass(), rounds=5000))"
+#
+# Alternatively if only python2 is available (at the time of writing it is the case on the bastion server):
+#
+# $ python -c "from passlib.hash import sha512_crypt; import getpass; print sha512_crypt.encrypt(getpass.getpass(), rounds=5000)"
+#
+
+- hosts: all
+  become: True
+  gather_facts: False
+
+## Define user when running
+  vars_prompt:
+    - name: username
+      prompt: "Username"
+      private: no
+    - name: comment
+      prompt: "Comment (GECOS)"
+      private: no
+    - name: pwdhash
+      prompt: "Password hash"
+      private: no
+    - name: group
+      prompt: "Primary group name (or leave blank to match username)"
+      private: no
+    - name: addgroups
+      prompt: "Supplemental group names (comma seperated list)"
+      private: no
+    - name: issudo
+      prompt: "Add to sudoers? (y/N)"
+      private: no
+
+## Alternatively, could can set "users" in yml, for example if you want
+## to add many users at once. To use this way comment out vars_prompt
+## and uncomment and edit this section
+# vars:
+#    users:
+#      - username: 'jdoe'
+#        comment: 'Jane Doe'
+#        group: 'users'
+#        addgroups: ''
+#        pwdhash: '$6$hENX71AX$nawouqqTCpmxYXQUR76SpT9jW9sL/Jbz3.h21zlGHCbXQU7a4P1AKdioCTQC.9vCPhSdXbh01lhSQfUT4I303.'
+#        issudo: 'n'
+#      - username: 'jsmith'
+#        comment: 'John Smith'
+#        addgroups: 'adm'
+#        pwdhash: '$6$WcMSc2Co$MyDhAa0zXyBu/L68ZLNPeJHGs49dOZWWGp.pzNqq5DOOjZmi6T7r8UmoiMh/YVIu9s5sF2mBg2jERQCBNfcVP/'
+#        issudo: 'y'
+  tasks:
+  - include_role:
+      name: user_add
+...

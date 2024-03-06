@@ -1,0 +1,8 @@
+---
+# RHEL/CentOS/Oracle 8 -> Intensiveprobes-RHEL8
+- name: Define nimbus package for Red Hat-based distros version 8
+  set_fact:
+    nimbus_package: "Intensiveprobes-RHEL8"
+  changed_when: "False"
+
+...

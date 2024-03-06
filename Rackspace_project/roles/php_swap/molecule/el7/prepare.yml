@@ -1,0 +1,22 @@
+---
+- name: Install PHP and prereqs
+  hosts: all
+  gather_facts: true
+  gather_subset:
+    - min
+  tasks:
+    - name: Install IUS
+      package:
+        name:
+          - https://repo.ius.io/ius-release-el7.rpm
+          - https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+        state: present
+
+    - name: Install default PHP package and prereqs
+      package:
+        name:
+          - which
+          - procps-ng
+          - php
+          - php-cli
+        state: present

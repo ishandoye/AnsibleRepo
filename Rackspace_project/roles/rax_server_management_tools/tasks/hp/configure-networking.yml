@@ -1,0 +1,31 @@
+---
+
+- name: Get obm networking info from CORE
+  include_tasks: ../common/get-obm-networking-info.yml
+  when: obm_ip is undefined or obm_nm is undefined or obm_gw is undefined
+
+- name: Create temp file for configuring ilo
+  tempfile:
+    state: file
+  changed_when: false
+  register: tmp_ilo_xml_config
+
+- block:
+    - name: Populate network settings in temp file
+      template:
+        dest: "{{ tmp_ilo_xml_config.path }}"
+        src: ../templates/ilo-configure-networking.xml.j2
+        owner: root
+        group: root
+        mode: 0600
+      changed_when: false
+
+    - name: Set ilo networking configuration
+      shell: /sbin/hponcfg -f {{ tmp_ilo_xml_config.path }}
+
+  always:
+    - name: Delete temp file for configuring ilo
+      file:
+        path: "{{ tmp_ilo_xml_config.path }}"
+        state: absent
+      changed_when: false

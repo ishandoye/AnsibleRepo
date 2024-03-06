@@ -1,0 +1,32 @@
+# For when variables are being set from vars_prompt
+- name: Generate users list
+  set_fact:
+    users:
+      - username: '{{ username }}'
+        comment: '{{ comment }}'
+        group: '{{ group }}'
+        addgroups: '{{ addgroups }}'
+        pwdhash: '{{ pwdhash }}'
+        issudo: '{{ issudo }}'
+  when: users is undefined
+
+- name: Add user(s)
+  user:
+    name: '{{ item.username }}'
+    comment: '{{ item.comment }}'
+    group: '{{ item.group|default(omit) or omit }}'
+    groups: '{{ item.addgroups }}'
+    append: yes
+    state: present
+    password: '{{ item.pwdhash }}'
+    update_password: on_create
+  with_items: '{{ users }}'
+
+- name: Add user(s) to sudoers
+  lineinfile:
+    dest: /etc/sudoers
+    regexp: '^{{ item.username }}\s'
+    line: '{{ item.username }} ALL=(ALL) ALL'
+    validate: '/usr/sbin/visudo -cf %s'
+  when: item.issudo | lower == 'y'
+  with_items: ' {{ users }}'

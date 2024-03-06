@@ -1,0 +1,7 @@
+---
+master_log_bin: /var/lib/mysql/binary-log
+master_binlog_format: MIXED
+master_expire_logs_days: 5
+slave_relay_log_space_limit: 4G
+slave_relay_log: /var/lib/mysql/relay-log
+...

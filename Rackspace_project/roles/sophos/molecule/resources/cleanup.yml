@@ -1,0 +1,13 @@
+---
+- name: Cleanup
+  hosts: all
+  become: false
+  gather_facts: false
+  tasks:
+    - name: Remove local copy of installer script
+      file:
+        path: /tmp/rs-sophosav-installer
+        state: absent
+      run_once: true
+      delegate_to: localhost
+...

@@ -1,0 +1,49 @@
+  - name: Load OS specific variables
+    include_vars: "{{ item }}"
+    with_first_found:
+    - files:
+        - "{{ ansible_os_family|lower }}{{
+            ansible_distribution_major_version  }}.yml"
+        - "{{ ansible_os_family|lower }}.yml"
+
+  - name: Ensure mysql is installed
+    command: which mysqld_safe
+    changed_when: false
+    any_errors_fatal: true
+
+  - name: Ensure mysql is running
+    shell: "ps -ef | grep mysqld_saf[e]"
+    changed_when: false
+    any_errors_fatal: true
+
+  - name: Check master matches a server
+    fail:
+        msg: "Master server not found"
+    when: hostvars[master] is not defined
+    any_errors_fatal: true
+
+  - name: Ensure there is no replication already running
+    mysql_replication:
+        mode: getslave
+    register: replication_status
+    failed_when: replication_status.Is_Slave == true
+    any_errors_fatal: true
+
+  - name: Install the MySQL-python package
+    package:
+        name: MySQL-python
+        state: installed
+
+  - name: Generate replicant password
+    set_fact:
+        replicant_password: "{{ lookup('password', '/tmp/passwordfile chars=ascii_letters,digits') }}"
+    run_once: True
+
+  - name: Run master setup
+    include: master.yml
+    when: inventory_hostname == master
+
+  - name: Run slave setup
+    include: slave.yml
+    when: inventory_hostname != master
+

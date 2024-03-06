@@ -1,0 +1,41 @@
+---
+- name: Unpack installer
+  ansible.builtin.command: >-
+    "{{ downloaded_file.dest }}" --noexec
+    --target "{{ download_path }}/installer"
+  args:
+    creates: "{{ download_path }}/installer"
+
+- name: Ensure /etc/init.d exists
+  ansible.builtin.file:
+    path: /etc/init.d
+    state: directory
+    mode: 0755
+    owner: root
+    group: root
+
+- name: Block for setting dnf module defaults
+  block:
+    - name: Ensure prerequisite packages are installed
+      ansible.builtin.package:
+        name: "{{ required_pkgs[ansible_os_family | lower] }}"
+        state: present
+  module_defaults:
+    ansible.builtin.dnf:
+      allowerasing: true
+
+- name: Run installer
+  ansible.builtin.command:
+    cmd: >-
+      ./install -y {% if debug_script %}-d{% endif %}
+      -S root -G root -c 0 -I /opt
+    chdir: "{{ download_path }}/installer"
+    creates: "{{ installed_version_path }}"
+  environment:
+    PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+- name: Get installed version
+  ansible.builtin.include_tasks:
+    file: get_version.yml
+  vars:
+    version_file: "{{ installed_version_path }}"

@@ -1,0 +1,39 @@
+---
+- name: Set IUS package name
+  set_fact:
+    ius_package: "ius"
+  when: php.php_pkg_source == "ius"
+
+- name: Fail when the php-fpm configuration test fails (skipped in check mode)
+  fail:
+    msg: "PHP-FPM configuration test failed. Please fix the errors manually and try again"
+  when:
+    - php.fpm_running
+    - not ansible_check_mode
+    - php.fpm_config_has_errors
+
+- name: Check which PHP package is installed  # noqa command-instead-of-module
+  command: "rpm -qi {{ item }}"
+  register: rpm_check_php_results
+  loop: "{{ php_packages + deprecated_php_packages | default([]) }}"
+  when: not php.fpm_running
+  ignore_errors: true
+
+- name: Check which PHP-FPM package is installed  # noqa command-instead-of-module
+  command: "rpm -qi {{ item }}"
+  register: rpm_check_fpm_results
+  loop: "{{ php_fpm_packages + deprecated_fpm_packages | default([]) }}"
+  when: php.fpm_running
+  ignore_errors: true
+
+- name: Set PHP package name
+  set_fact:
+    installed_php: "{{ item.item }}"
+  when: not php.fpm_running and item.rc == 0
+  loop: "{{ rpm_check_php_results.results }}"
+
+- name: Set PHP FPM package name
+  set_fact:
+    installed_php: "{{ item.item }}"
+  when: php.fpm_running and item.rc == 0
+  loop: "{{ rpm_check_fpm_results.results }}"

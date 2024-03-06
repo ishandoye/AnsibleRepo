@@ -1,0 +1,22 @@
+---
+
+- name: Check if chassis is supported
+  set_fact:
+    obm_vendor: "{{ ansible_system_vendor.split(' ')[0] | lower }}"
+  failed_when: ansible_system_vendor not in ['HP','Dell Inc.']
+
+- name: Configure vendor repository
+  include_tasks: "{{ obm_vendor }}/configure-repo.yml"
+  when: configure_repo|bool or install_vendor_tools|bool
+
+- name: Install vendor tools
+  include_tasks: "{{ obm_vendor }}/install-packages.yml"
+  when: install_vendor_tools|bool
+
+- name: Reset obm root password
+  include_tasks: "{{ obm_vendor }}/reset-obm-root-pw.yml"
+  when: reset_obm_root_pw|bool
+
+- name: Configure obm networking
+  include_tasks: "{{ obm_vendor }}/configure-networking.yml"
+  when: configure_obm_networking|bool

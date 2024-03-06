@@ -1,0 +1,79 @@
+# Partly adapted from https://github.rackspace.com/APE/PlaybookLibrary/blob/master/Linux/roles/adc_main/tasks/patching_RedHat_RHUI.yaml
+
+# This returns RPMs for EL 6, 7, and 8, e.g.:
+#     rackspace-rhui-client-latest-8.noarch.rpm
+#     rackspace-rhui-client-ospc-latest-8.noarch.rpm
+#     rackspace-rhui-client-resilientstorage-latest-8.noarch.rpm
+- name: "Get RPM info from RHUI API"
+  retries: 1
+  delay: 10
+  until: rhui_api_output.json is defined and rhui_api_output.json.get("activation_links")
+  uri:
+    headers:
+      X-Auth-Token: "{{ lookup('rax_secret', 'rackertoken') }}"
+    url: "{{ rhui_host }}{{ rhui_endpoint }}"
+    return_content: "yes"
+    validate_certs: false
+  register: rhui_api_output
+  delegate_to: localhost
+  become: false
+  tags: print_action
+  no_log: true
+  ignore_errors: true
+  failed_when: false
+
+- name: Check RHUI API Mapping
+  fail:
+    msg: "No RPM mapping found. Typically this means that the device is not SKUd properly"
+  when: rhui_api_output.status == 404
+
+- name: Check for API json errors
+  fail:
+    msg: "An error occurred: {{ rhui_api_output.json.Error }}"
+  when: rhui_api_output.status != 200 and rhui_api_output.json is defined
+
+- name: Check for Stepladder Auth Failures
+  fail:
+    msg: "Stepladder Auth failed"
+  when: rhui_api_output.status == 401
+
+- name: Catch unknown errors
+  fail:
+    msg: "An unknown error occurred communicating with the RHUI activation API"
+  when: rhui_api_output.status != 200
+
+- name: "Parse RHUI Payload"
+  # "rhui_api_output": {
+  #    ...
+  #    "json": {
+  #      "activation_links": [
+  #      {
+  #        "download_url": "https://test-api-catalyst-inttools-av-test.devapps.rsi.rackspace.net/v1/download/8c580037-e3ba-49eb-a7d3-b77838920206",
+  #        "expiration": "2020-07-24T18:30:09.98064738Z",
+  #        "file_name": "oraclelinux-release-rackspace-latest-8.noarch.rpm",
+  #        "obfuscated_name": "8c580037-e3ba-49eb-a7d3-b77838920206"
+  #      }
+  #      ],
+  #      "device_number": 695363
+  #    },
+  #    ...
+  set_fact:
+    rhui_rpm: "{{ rhui_api_output.json | json_query('activation_links[*]') }}"
+
+- name: "Install RHUI RPMs"
+  block:
+    - name: "Download RPM locally"
+      delegate_to: localhost
+      get_url:
+        url: "{{ item.download_url }}"
+        dest: "{{ local_temp_dir }}/{{ item.file_name }}"
+      become: false
+      loop: "{{ rhui_rpm|flatten(levels=1) }}"
+
+    - name: "Upload RPM to the device"
+      copy:
+        src: "{{ local_temp_dir }}/{{ item.file_name }}"
+        dest: "{{ ansible_env.HOME }}/{{ item.obfuscated_name }}.rpm"
+        mode: 0664
+        follow: true
+      loop: "{{ rhui_rpm|flatten(levels=1) }}"

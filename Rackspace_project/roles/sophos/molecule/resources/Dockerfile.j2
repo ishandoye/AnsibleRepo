@@ -1,0 +1,20 @@
+# Molecule managed
+
+{% if item.registry is defined %}
+FROM {{ item.registry.url }}/{{ item.image }}
+{% else %}
+FROM {{ item.image }}
+{% endif %}
+
+RUN if [ -e /etc/centos-release ] &&  grep -q 'release 6' /etc/centos-release; then \
+    sed -i 's/^mirror/#mirror/' /etc/yum.repos.d/CentOS-Base.repo; \
+    sed -i 's/#baseurl=http:\/\/mirror.centos.org\/centos/baseurl=http:\/\/mirror.rackspace.com\/centos-vault/' /etc/yum.repos.d/CentOS-Base.repo; \
+    echo "6.10" > /etc/yum/vars/releasever; \
+    fi
+RUN if [ $(command -v apt-get) ]; then mkdir -p /etc/init && dpkg --add-architecture i386 && apt-get update && \
+        apt-get install -y curl wget python python-apt python3-apt apt-transport-https apt-utils sudo bash ca-certificates dbus systemd systemd-sysv && \
+        apt-get clean; \
+    elif [ $(command -v dnf) ]; then dnf makecache && dnf --assumeyes install curl wget python3 python3-dnf bash sudo && dnf clean all; \
+    elif [ $(command -v yum) ]; then yum makecache fast && yum install -y curl wget python sudo yum-plugin-ovl bash && sed -i 's/plugins=0/plugins=1/g' /etc/yum.conf && yum clean all; \
+    elif [ $(command -v zypper) ]; then zypper refresh && zypper install -y curl wget python sudo bash python-xml && zypper clean -a; \
+    fi

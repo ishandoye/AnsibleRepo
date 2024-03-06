@@ -1,0 +1,52 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Include role vars
+      include_vars: ../../vars/main.yml
+
+    - name: Find backup files
+      find:
+        paths: "{{ rack_dir }}"
+        patterns: "sophos-*.tar.gz"
+        file_type: file
+      register: sophos_backups
+
+    - name: Check for Sophos install dir
+      stat:
+        path: "{{ sophos_install_dir }}"
+      register: sophos_dir
+
+    - name: Look for Sophos processes
+      command: pgrep -l {{ item }}
+      register: sophos_procs
+      changed_when: false
+      failed_when: sophos_procs.rc not in [0, 1]
+      loop:
+        - savd
+        - savscand
+        - magent
+        - mrouter
+        - sophosmgmtd
+
+    - name: Verify we made a backup
+      assert:
+        that: sophos_backups.matched == 1
+        success_msg: >
+          Backup found: {{ sophos_backups.files[0].path|default(omit) }}
+
+    - name: Verify Sophos install dir was removed
+      assert:
+        that: sophos_dir.exists is not defined
+
+    - name: Verify all sophos processes have been stopped
+      assert:
+        that: item.stdout_lines|length == 0
+        quiet: true
+        success_msg: "No processes found"
+        fail_msg: "Processes found: {{ item.stdout }}"
+      loop: "{{ sophos_procs.results }}"
+      loop_control:
+        label: "process: {{ item.item }}"
+...

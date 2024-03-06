@@ -1,0 +1,36 @@
+- name: Upgrade correct version
+  block:
+    - name: Upgrade my.cnf
+      include: upgrade_mycnf.yml
+
+    - name: Remove old MySQL packages
+      include: remove.yml
+
+    - name: Set mysql_new_version
+      set_fact:
+        mysql_new_version: "{{ outer_item }}"
+
+    - name: Set repo for community
+      set_fact:
+        repo: "{{ mysql_new_version }}"
+
+    - name: Install MySQL from community repo
+      include: community.yml
+
+    - name: Update my.cnf
+      copy:
+        src: /home/rack/{{ ticket_no }}/ansible_my.cnf{{ mysql_new_version | regex_replace('\.', '') }}
+        dest: "{{ my_cnf }}"
+        remote_src: true
+        force: true
+        mode: 0644
+
+    - name: Run mysql_upgrade
+      include: upgrade.yml
+
+    - name: Re-gather MySQL raxfacts
+      raxfacts:
+        facts:
+          - mysql
+
+  when: outer_item is version(original_mysql_version, '>') and outer_item is version(upgrade_version, '<=')

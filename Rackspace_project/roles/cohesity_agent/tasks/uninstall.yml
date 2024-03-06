@@ -1,0 +1,13 @@
+---
+- name: Run cohesity agent uninstaller
+  ansible.builtin.command: "{{ uninstaller_path }} -y"
+  args:
+    removes: "{{ installed_version_path }}"
+
+- name: Print uninstall info
+  ansible.builtin.debug:
+    msg: Uninstalled cohesity agent version {{ installed_version }}
+
+- name: Set installed version to none
+  ansible.builtin.set_fact:
+    installed_version: null

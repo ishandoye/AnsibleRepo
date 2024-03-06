@@ -1,0 +1,5 @@
+---
+# Variables that can be overriden
+rs_ntp: "True"
+update_pkg_cache: "no"
+...

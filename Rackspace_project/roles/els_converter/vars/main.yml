@@ -1,0 +1,10 @@
+---
+local_temp_dir: "/tmp"
+dest_dir: "/home/rack"
+pkg_name: "rhuiclient.rpm"
+rhui_host: "https://stepladder.rax.io"
+rhui_endpoint: "/api/repo_activation/catalyst/{{ rs_server }}"
+rax_url: "https://rax.mirror.rackspace.com/release/rax-release-rackspace-latest-7.noarch.rpm"
+rigatoni: false
+stepladder: false
+...

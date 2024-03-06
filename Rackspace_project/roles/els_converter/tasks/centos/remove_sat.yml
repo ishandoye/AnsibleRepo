@@ -1,0 +1,68 @@
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Stop RHN services
+  service:
+    name: "{{ item }}"
+    state: stopped
+  with_items:
+    - rhnsd
+    - osad
+  when: item in ansible_facts.services
+
+- block:
+    - name: Remove rhn oriented packages
+      yum:
+        name:
+          - rhnsd
+          - osad
+          - yum-rhn-plugin
+          - osa-common
+          - spacewalk-backend-usix
+          - rhn-setup
+          - rhn-client-tools
+          - rhn-check
+          - rhnlib
+          - rhncfg-client
+          - rhncfg-actions
+          - rhncfg
+          - rhn-org-trusted-ssl-cert
+          - rs-release
+          - rs-epel-release
+        state: absent
+      register: rhn_uninstall
+      failed_when: rhn_uninstall.rc|int not in [0,1]
+
+  rescue:
+    - name: Report RHN Removal Failure to Rigatoni
+      delegate_to: localhost
+      become: false
+      uri:
+        url: "https://stepladder.rax.io/api/rigatoni/v1/reports/GTSENG-205/{{ device_id }}"
+        method: POST
+        return_content: true
+        headers:
+          accept: application/json
+          X-Auth-Token: "{{ rackertoken }}"
+        body: "{\"result_code\":\"17\"}"
+        body_format: json
+      when: rigatoni
+
+    - name: Fail on RHN Removal Failure
+      fail:
+        msg: "Error Removing RHN software"
+
+
+- name: Remove stale yum data
+  file:
+    state: absent
+    path:
+      - /etc/yum/pluginconf.d/rhnplugin.conf.rpmsave
+      - /etc/sysconfig/rhn/up2date.rpmsave
+      - /etc/sysconfig/rhn/osad-auth.conf.rpmsave
+
+- name: Remove stale yum cache
+  file:
+    state: absent
+    path: /var/cache/yum
+  ignore_errors: true

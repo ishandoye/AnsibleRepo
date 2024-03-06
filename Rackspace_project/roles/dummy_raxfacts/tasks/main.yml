@@ -1,0 +1,12 @@
+---
+- name: Set OS Name
+  set_fact:
+    OS_NAME: "{{ ansible_distribution + ' ' + ansible_distribution_major_version }}"
+    cloud_label: "{{ '-cloud'  if is_cloud is defined else '' }}"
+
+- name: "Simulate CORE data for {{ OS_NAME }}"
+  include_vars: "{{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}{{ cloud_label }}.yml"
+
+- name: Show Device ID
+  debug:
+    msg: "Device ID: {{ rs_server }}"

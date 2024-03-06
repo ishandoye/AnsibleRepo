@@ -1,0 +1,25 @@
+---
+php_packages:
+  - php
+
+php_fpm_packages:
+  - php-fpm
+
+php_toplevel_packages: "{{ php_packages + php_fpm_packages }}"
+
+opcache_package_name:
+  php: php-opcache.x86_64
+  php-fpm: php-opcache.x86_64
+
+appstream_versions:
+  - "7.2"
+  - "7.3"
+  - "7.4"
+  - "8.0"
+  - "remi-7.2"
+  - "remi-7.3"
+  - "remi-7.4"
+  - "remi-8.0"
+  - "remi-8.1"
+
+default_appstream: "7.2"

@@ -1,0 +1,34 @@
+# Sets nimbus proc q monitor to proper number (# of CPU Cores * 4), 
+# enables/disables CPU usage warning and error and allows for the %CPU usage for those monitors to be set.
+---
+- name: Set nimbus proc q monitor to correct number (# of CPU Cores * 4), optionally set CPU Error and Warning Threshold
+  hosts: all
+  become: true
+  gather_facts: true
+  connection: ssh
+
+  vars_prompt:
+    - name: "ticket_num"
+      prompt: "Backup Directory Name (ticket #)"
+      private: no
+    - name: "cpu_error_prompt"
+      prompt: "Enable CPU ERROR Threshold? (Y/N)"
+      default: "N"
+      private: no
+    - name: "cpu_error_threshold"
+      prompt: Set CPU ERROR Threshold
+      default: 95
+      private: no
+    - name: "cpu_warning_prompt"
+      prompt: "Enable CPU WARNING Threshold? (Y/N)"
+      default: "N"
+      private: no
+    - name: "cpu_warning_threshold"
+      prompt: Set CPU WARNING Threshold
+      default: 90
+      private: no
+
+  tasks:
+    - name: nimbus_proc_q
+      include_role:
+        name: nimbus_proc_q

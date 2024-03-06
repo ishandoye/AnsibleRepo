@@ -1,0 +1,93 @@
+- name: Check for newrelic_license_key
+  fail:
+    msg: "newrelic license key has not been defined"
+  when: license == ""
+
+- include_tasks: Debian.yml
+  when: ansible_os_family == 'Debian'
+
+- include_tasks: Redhat.yml
+  when: ansible_os_family == 'RedHat'
+
+- name: Run newrelic installer
+  shell: NR_INSTALL_SILENT=true /usr/bin/newrelic-install install
+
+- name: Include PHP variables specific to Distro
+  include_vars: "../vars/{{ ansible_os_family }}.yml"
+
+- name: check for newrelic.ini files
+  stat:
+     path: "{{ item }}"
+  with_items: "{{ php_newrelic_path }}"
+  register: newrelic_ini_files
+
+- name: Include license_key
+  lineinfile:
+      backrefs: yes
+      dest: "{{ item.item }}"
+      line: newrelic.license = "{{ license }}"
+      regexp: ^newrelic.license
+      backup: yes
+  with_items:
+          - "{{ newrelic_ini_files.results|selectattr('stat.exists')|list }}"
+
+- name: Include application name
+  lineinfile:
+      backrefs: yes
+      dest: "{{ item.item }}"
+      line: newrelic.appname = "{{AppName}}"
+      regexp: ^newrelic.appname
+      backup: yes
+  when: AppName is defined
+  with_items:
+          - "{{ newrelic_ini_files.results|selectattr('stat.exists')|list }}"
+
+- name: verify apache is running
+  stat:
+    path: "{{ apache_pid_path }}"
+  register: apache_pid
+
+- name: restart apache service
+  command: /usr/sbin/apachectl configtest
+  when: apache_pid.stat.exists == True
+  register: apache_config_result
+  ignore_errors: yes
+
+- name: Apache config error
+  fail:
+     msg: "Apache config Error please check manaully"
+  when: apache_config_result is failed
+
+- name: restarting apache
+  debug:
+    msg: "Restarting apache service"
+  when: apache_pid.stat.exists == True and apache_config_result is success
+  changed_when: true
+  notify: restart apache
+
+- name: verify php-fpm is running
+  stat:
+    path: "{{ php_fpm_pid_path }}"
+  register: fpm_pid
+
+- name: verify no syntax errors on php-fpm
+  command: "{{ php_fpm_srv }} -t"
+  when: fpm_pid.stat.exists == True
+  register: php_fpm_config_result
+  ignore_errors: yes
+
+- name: php-fpm config test results
+  fail:
+    msg: "php-fpm config Error please check manaully"
+  when: php_fpm_config_result is failed
+
+- name: restarting php-fpm
+  debug:
+     msg: "Restarting php-fpm service"
+  when: fpm_pid.stat.exists == True and php_fpm_config_result is success
+  changed_when: true
+  notify: restart php-fpm
+
+- name: verify php7.0-fpm is configured
+  include_tasks: php7-fpm.yml
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'

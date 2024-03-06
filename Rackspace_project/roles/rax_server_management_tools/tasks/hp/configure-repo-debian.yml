@@ -1,0 +1,14 @@
+---
+
+- name: Import hp gpg keys
+  apt_key:
+    state: present
+    url: "{{ item }}"
+  with_items: "{{ hp_gpgkey_urls }}"
+
+- name: Configure hp-mcp apt repo
+  apt_repository:
+    repo: deb {{ hp_mcp_url }} {{ ansible_distribution_release }}/current non-free
+    state: present
+    filename: hp-spp
+

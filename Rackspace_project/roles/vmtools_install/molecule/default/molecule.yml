@@ -1,0 +1,69 @@
+---
+dependency:
+  name: galaxy
+
+driver:
+  name: docker
+
+lint:
+  name: yamllint
+  options:
+    config-data:
+      rules:
+        braces:
+          max-spaces-inside: 1
+          level: error
+        brackets:
+          max-spaces-inside: 1
+          level: error
+        line-length: disable
+        truthy: disable
+
+platforms:
+  - name: molecule_c6
+    image: centos:6
+    privileged: true
+
+  - name: molecule_c7
+    image: centos:7
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: /usr/sbin/init
+
+  - name: molecule_c8
+    image: centos:8
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    command: /usr/sbin/init
+
+  - name: molecule_u16
+    image: ubuntu:16.04
+    privileged: true
+    command: /lib/systemd/systemd
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      # - /sys/fs/selinux:/sys/fs/selinux:ro
+
+  - name: molecule_u18
+    image: ubuntu:18.04
+    privileged: true
+    command: /lib/systemd/systemd
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+provisioner:
+  name: ansible
+  log: true
+  lint:
+    name: ansible-lint
+    options:
+      x:
+        - 403
+scenario:
+  name: default
+verifier:
+  name: ansible
+  lint:
+    name: ansible-lint

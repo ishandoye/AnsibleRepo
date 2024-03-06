@@ -1,0 +1,71 @@
+---
+- name: Make sure server is supported
+  fail:
+    msg: >
+      "This playbook does not support {{ ansible_distribution }}"
+      "{{ ansible_distribution_major_version }}"
+  failed_when: >
+    ansible_distribution|lower in supported_distros|list and
+      ansible_distribution_major_version|int <
+      supported_distros[ansible_distribution|lower]|int
+
+- name: Make sure syslog daemon provided is supported
+  fail:
+    msg: >
+      "This playbook does not support {{ syslog_daemon }}"
+  failed_when: >
+    syslog_daemon not in syslog_confs
+
+- name: Fail if registration key is not provided
+  fail:
+    msg: "Registry key is required: -e registration_key=.."
+  when: registration_key is undefined
+
+- name: Validate if agent is already installed and configured
+  include_tasks: validate.yml
+
+- name: Fail agent is already registered against a diff registration key
+  fail:
+    msg: "{{ al_agent_validation.stdout }}"
+  when: al_is_registered is defined
+
+- name: Connectivity checks
+  block:
+  - name: "Check connectivity to {{ al_host }} tcp/443"
+    wait_for:
+      host: "{{ al_host }}"
+      port: 443
+      timeout: 5
+    register: port443_check
+    ignore_errors: "yes"
+    become: "no"
+
+  - name: Exit if unable to establish a connection to alert logic host
+    fail:
+      msg: "Unable to establish a connection to {{ al_host }} tcp/443."
+    failed_when: port443_check.failed
+  when: al_is_validated is undefined
+
+- name: Push and install package
+  block:
+  - name: Push installer to server
+    include_tasks: push.yml
+
+  # Package installation using diff tasks due to package limitation as noted
+  # in: https://github.com/ansible/ansible/issues/42981
+  - name: Install package
+    include_tasks: "install_{{ ansible_os_family|lower }}.yml"
+  when: al_is_installed is undefined
+
+- name: Configure and register the agent
+  include_tasks: config.yml
+  when: al_is_validated is undefined
+
+- name: Validate the agent was installed and configured
+  include_tasks: validate.yml
+  when: al_is_validated is undefined
+
+- name: Configure syslogs
+  include_tasks: syslog.yml
+
+...

@@ -1,0 +1,17 @@
+---
+- name: Add GPG Key
+  apt_key:
+    url: 'https://download.newrelic.com/infrastructure_agent/gpg/newrelic-infra.gpg'
+    state: present
+
+- name: Configure Repository Debian/Ubuntu
+  apt_repository:
+    repo: 'deb [arch=amd64] https://download.newrelic.com/infrastructure_agent/linux/apt {{ ansible_distribution_release }} main'
+    state: present
+    update_cache: yes
+
+- name: Install NewRelic Agent Debian/Ubuntu
+  apt:
+    name: newrelic-infra
+    state: present
+  register: is_installed

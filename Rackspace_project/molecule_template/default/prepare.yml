@@ -1,0 +1,13 @@
+---
+- name: Prepare Dedicated Servers
+  hosts: all
+  tasks:
+    - name: Test ansible execution
+      become: true
+      ping:
+      register: test_exec
+
+    - name: Verify success
+      assert:
+        that: test_exec.ping == "pong"
+...

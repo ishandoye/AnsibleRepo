@@ -1,0 +1,16 @@
+---
+# List of minor OS versions that are blocked from working
+os_block_list:
+  RedHat: []
+# List of major OS versions that are allowed to work
+os_allow_list:
+  RedHat:
+    - "7"
+    - "8"
+
+# A dict of PHP modules that have been deprecated/removed with the version this happened.
+deprecated_php_modules:
+  wddx: "7.4"
+  ereg: "7.0"
+  mhash: "5.3"
+  zip: "7.4"

@@ -1,0 +1,2 @@
+device_id: "{{ rs_server }}"
+timezone: "{{ data[device_id|string] }}"

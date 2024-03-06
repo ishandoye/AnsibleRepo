@@ -1,0 +1,80 @@
+---
+- name: Cleanup docker instances from AD
+  hosts: all
+  gather_facts: false
+  become: false
+  vars:
+    # Can't guarantee that all/any hosts actually exist, so we can't run
+    # gather_facts. Thus we default ansible_hostname to inventory_hostname
+    # as that is used in the vars files later
+    ansible_hostname: "{{ inventory_hostname }}"
+  tasks:
+    - name: Setup vars from role
+      include_vars:
+        file: "{{ item }}.yml"
+      loop:
+        - defaults
+        - main
+        - "{{ type|lower }}"
+
+    - name: Check we have username & password available
+      assert:
+        that:
+          - JOINACCT|default('', true)|length > 0
+          - JOINPWD|default('', true)|length > 0
+        fail_msg: >
+          You must set the environment variables INTENSIVE_USERNAME and
+          INTENSIVE_PASSWORD with the credentials that will be used for
+          testing the domain join. This should normally be your generated
+          intensive credentials
+        quiet: true
+
+    - name: Local tasks
+      delegate_to: localhost
+      block:
+        - name: Destroy any existing kerberos user tickets
+          shell: /usr/bin/kdestroy  # noqa 301
+          register: kdestroy_rslt
+          changed_when: >
+            kdestroy_rslt.stderr is not search('No credentials cache found')
+          run_once: true
+
+        - name: Check we can obtain a kerberos user ticket  # noqa 301 306
+          shell: >
+            echo {{ JOINPWD|quote }} | kinit -C {{ JOINACCT|quote }}
+          register: kinit_rslt
+          failed_when: false
+          changed_when: kinit_rslt.rc|int == 0
+          run_once: true
+          no_log: true
+
+        - name: Fail if we didn't get a kerberos ticket
+          fail:
+            msg: "{{ kinit_rslt.stderr }}"
+          when: kinit_rslt.rc|int != 0
+          run_once: true
+
+        - name: Check if computer account exists
+          shell: >
+            adcli show-computer -C --domain={{ ad_domain }} {{ netbiosname }}
+          changed_when: false
+          failed_when: false
+          register: ad_computer
+
+        - name: Delete computer account from AD
+          shell: >
+            adcli delete-computer -C --domain={{ ad_domain }} {{ netbiosname }}
+          when: ad_computer.rc|int == 0
+      rescue:
+        - name: Warn manual cleanup is required
+          debug:
+            msg: >
+              Failed to remove {{ inventory_hostname }} from AD - you will need
+              to complete this manually
+      always:
+        - name: Destroy any existing kerberos user tickets
+          shell: /usr/bin/kdestroy  # noqa 301
+          register: kdestroy_rslt
+          changed_when: >
+            kdestroy_rslt.stderr is not search('No credentials cache found')
+          run_once: true

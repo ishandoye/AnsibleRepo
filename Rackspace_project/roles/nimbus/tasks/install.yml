@@ -1,0 +1,40 @@
+---
+- name: Push installer to server
+  include_tasks: push.yml
+  when: push is defined
+
+- name: Pull installer in server
+  include_tasks: pull.yml
+  when: push is undefined
+
+- name: Define nimbus package
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - files:
+        - "nimbus_package_{{ ansible_os_family|lower }}{{ ansible_distribution_major_version }}.yml"
+        - "nimbus_package_{{ ansible_distribution|lower }}.yml"
+
+- name: Define the nimbus install commandline
+  set_fact:
+    nimbus_install_cli: >
+      {{ ansible_python.executable }} nimbusinstaller.py
+      -A {{ rs_customer }}
+      -S {{ rs_server }}
+      -D {{ rs_region }}
+      -I {{ rs_ctkapi_info.primary_ip if rs_ctkapi_info.primary_ip is defined else ansible_host }}
+      -P {{ nimbus_package }}
+
+- name: Run installer
+  become: true
+  command: "{{ nimbus_install_cli }}"
+  args:
+    chdir: "{{ nimbus_installer_path }}"
+  notify:
+    - reload systemd daemon
+
+- name: Remove nimbus installer
+  file:
+    path: "{{ nimbus_installer_path }}"
+    state: absent
+
+...

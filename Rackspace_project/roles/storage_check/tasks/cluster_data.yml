@@ -1,0 +1,20 @@
+---
+# Tasks to extract cluster data for storage_check
+- name: Get cluster nodes
+  set_fact:
+    cluster_nodes: >
+      {{ raxfacts.cluster|json_query('members[].name') }}
+
+- name: Find multipath devices used directly in cluster config
+  set_fact:
+    cluster_mpdevs: >-
+      [
+        {%- for mpdev in raxfacts.storage.multipath_devices -%}
+        {% if raxfacts.cluster|json_query('services[].fs_detail[]')|default([])|
+              selectattr('device', 'regex', '^/dev/' + mpdev.name + '\d?$')|
+              list|length > 0 -%}
+        "{{ mpdev.name }}",
+        {%- endif %}
+        {%- endfor -%}
+      ]
+...

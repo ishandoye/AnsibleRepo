@@ -1,0 +1,11 @@
+mariadb_versions:
+  - "10.2"
+  - "10.3"
+  - "10.4"
+  - "10.5"
+  - "10.6"
+  - "10.7"
+  - "10.8"
+mariadb_service: "mariadb"
+percona_service: "mysql"
+mysql_service: "mysql"

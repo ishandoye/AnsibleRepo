@@ -1,0 +1,182 @@
+---
+#
+# Playbook to hide fencing passwords on a Pacemaker cluster
+# as per https://one.rackspace.com/display/Linux/PCS+-+Hiding+Fence+Passwords
+#
+
+- name: Gather data from cluster
+  block:
+    - name: Get node names
+      command: /sbin/crm_node -l
+      register: node_names
+      changed_when: false
+
+    - name: Sort node names
+      set_fact:
+        node_names_sorted: "{{ node_names_sorted|default([]) +
+          [ item.split()[1] ]}}"
+      with_items:
+        "{{ node_names.stdout_lines|sort() }}"
+
+    - name: Get fencing resource names
+      command: |
+        /sbin/cibadmin --query --xpath='//primitive[@class="stonith"]'
+                       --node-path
+      register: clus_fence
+      changed_when: "False"
+
+    - name: Get fencing resource
+      set_fact:
+        fence_list: "{{ fence_list|default([]) +
+          [ item|regex_replace(\".*\\[@id='(.*)'\\]\", '\\1') ] }}"
+      with_items: "{{ clus_fence.stdout_lines }}"
+
+    - name: Get fence passwords
+      command: |
+        /sbin/crm_resource --query-xml --resource {{ item }}
+                           --get-parameter=passwd
+      register: fence_password
+      with_items: "{{ fence_list }}"
+      changed_when: "False"
+      no_log: true
+
+    - name: Extract stonith passwords
+      set_fact:
+        passwd_dict: "{{ passwd_dict|default({}) |
+          combine({ item.cmd[3]: item.stdout }) }}"
+      with_items: "{{ fence_password.results }}"
+      no_log: true
+
+    - name: Check for existence of gpg keys
+      stat:
+        path: /var/lib/pacemaker/.gnupg/secring.gpg
+      register: gnupg
+
+    - name: Fail if gpg keys already exist
+      fail:
+        msg: "gpg keys already exist on server"
+      failed_when: gnupg.stat.exists
+  become: true
+
+- name: Fail if we aren't running playbook on all nodes in the cluster
+  fail:
+    msg: Cluster node count doesn't match number of servers for playbook
+  failed_when: node_names_sorted|count|int != groups['all']|count|int
+  delegate_to: 127.0.0.1
+
+- name: Fail if all cluster nodes don't report the same membership
+  fail:
+    msg: Cluster node list doesn't match
+  failed_when: node_names_sorted|join(' ')|hash('md5') !=
+    hostvars[ansible_play_hosts[0]].node_names_sorted|join(' ')|hash('md5')
+
+- name: Create local temporary directory
+  local_action:
+    module: tempfile
+    state: directory
+    suffix: gpg
+  register: tmpdir
+  notify: Cleanup temp directory
+
+# Run all of the gpg generation on one of the cluster nodes
+- name: Generate encrypted password files
+  block:
+    - name: Install haveged daemon to ensure sufficient entropy is available
+      yum:
+        name: haveged
+        state: present
+      notify: Remove haveged daemon
+
+    - name: Start haveged daemon
+      service:
+        name: haveged
+        state: started
+      notify: Stop haveged service
+
+      # Note that we are creating a keyring with no passphrase,
+      # so exclude the 'passphrase' parameter from the list
+    - name: Initialize secret keyring
+      shell:
+        cmd: |
+          cat <<EOF|
+          Key-Type: RSA
+          Key-Length: 2048
+          Subkey-Type: RSA
+          Subkey-Length: 2048
+          Name-Real: fenceuser
+          Name-Email: fenceuser@localhost
+          %commit
+          EOF
+          gpg --batch --gen-key
+
+    - name: Create encrypted password files
+      shell: >
+        echo "{{ item.value }}" |
+        gpg -e -r fenceuser -o /var/lib/pacemaker/.gnupg/{{ item.key }}.gpg
+      args:
+        creates: "/var/lib/pacemaker/.gnupg/{{ item.key }}.gpg"
+      with_dict: "{{ passwd_dict }}"
+      no_log: true
+
+    - name: Archive gpg files for transfer
+      archive:
+        path: /var/lib/pacemaker/.gnupg
+        dest: /root/gpg.tgz
+      register: gpg_archive
+      notify: Remove archive file
+
+    - name: Fetch archive
+      fetch:
+        src: /root/gpg.tgz
+        dest: "{{ tmpdir.path }}/"
+        flat: true
+  environment:
+    GNUPGHOME: /var/lib/pacemaker/.gnupg
+  become: true
+  when: inventory_hostname == groups['all'][0]
+
+- name: Setup password files and scripts on cluster nodes
+  block:
+    - name: Upload & unpack gpg archive
+      unarchive:
+        src: "{{ hostvars[groups['all'][0]]['tmpdir']['path'] }}/gpg.tgz"
+        remote_src: false
+        dest: "{{ hostvars[groups['all'][0]]['gpg_archive']['arcroot'] }}"
+
+    - name: Set permissions & selinux contexts on gpg files
+      file:
+        path: /var/lib/pacemaker/.gnupg
+        state: directory
+        recurse: true
+        owner: root
+        group: root
+        seuser: system_u
+        serole: object_r
+        setype: cluster_var_lib_t
+        mode: u=rwX,g=,o=
+
+    - name: Create fence scripts
+      copy:
+        content: |
+          #!/bin/sh
+          /bin/gpg --quiet --homedir /var/lib/pacemaker/.gnupg \
+                   -d /var/lib/pacemaker/.gnupg/{{ item.key }}.gpg
+        dest: /usr/local/bin/get_{{ item.key }}_passwd.sh
+        mode: 0700
+        owner: root
+        group: root
+      with_dict: "{{ passwd_dict }}"
+      no_log: true
+  become: true
+
+- name: Update stonith resources
+  command: >
+    /sbin/pcs stonith update {{ item.key }}
+    passwd_script=/usr/local/bin/get_{{ item.key }}_passwd.sh
+    passwd=
+  with_dict: "{{ passwd_dict }}"
+  become: true
+  when: inventory_hostname == groups['all'][0]
+  no_log: true
+
+...

@@ -1,0 +1,77 @@
+---
+- name: Perform connectivity tests
+  include_tasks: connectivity.yml
+
+- name: Enable 32bit architecture on Debian based distros
+  command: dpkg --add-architecture i386
+  register: deb_arch
+  failed_when: deb_arch.rc != 0
+  when: ansible_os_family == "Debian"
+
+- name: Install sophos installer package
+  package:
+    name: rs-sophosav-installer
+    state: present
+    update_cache: true
+  register: rs_pkg_install
+  ignore_errors: true
+
+- name: Use installer script if package install unavailable
+  block:
+    - name: Install sophos dependencies
+      package:
+        name: "{{ sophos_deps }}"
+        state: present
+
+    - name: Fetch Sophos installation script
+      include_tasks: install_script.yml
+  when: rs_pkg_install is failed
+
+- name: Execute rs-sophosav-installer
+  command: >
+    {{ sophos_installer_bin }}
+    --account {{ rs_customer }}
+    --server {{ rs_server }}
+    --location {{ rs_region }}
+    --debug
+  args:
+    creates: "{{ sophos_bin_dir }}/savdstatus"
+  notify: Remove sophos installer script
+
+- name: Set fanotify as on-access kernel interface
+  include_tasks: fanotify.yml
+  when: >
+    ( ansible_distribution == "Ubuntu" and
+      ansible_distribution_major_version|int >= 16 ) or
+    ( ansible_os_family == "RedHat" and
+      ansible_distribution_major_version|int >= 7 )
+
+- name: Validate exclusions
+  include_tasks: exclusions.yml
+
+- name: Get installed Sophos version and status
+  shell: >
+    {{ sophos_bin_dir }}/savdstatus;
+    {{ sophos_bin_dir }}/savdstatus --version
+  changed_when: false
+  failed_when: >
+    not 'sophos anti-virus is active' in
+    savdstatus_rst.stdout_lines[0]|lower
+  register: savdstatus_rst
+  retries: 10
+  delay: 30
+  until: "'and on-access' in savdstatus_rst.stdout"
+
+- name: Show installed Sophos version and status
+  debug:
+    msg: >
+      "{{ savdstatus_rst.stdout_lines[0] }}"
+      "{{ savdstatus_rst.stdout_lines[2] }}"
+
+- name: Validate on-access is enabled
+  fail:
+    msg: >
+      "On-Access was not enabled on this server."
+  failed_when: "'but on-access' in savdstatus_rst.stdout_lines[0]"
+
+...

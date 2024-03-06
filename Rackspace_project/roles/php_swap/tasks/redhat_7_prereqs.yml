@@ -1,0 +1,62 @@
+---
+- name: Set installed PHP short name
+  set_fact:
+    installed_short_name: "{{ installed_php|regex_search('php(-fpm)?([0-9][0-9])?') }}"
+
+- name: Set replacement PHP short name
+  set_fact:
+    replace_short_name: "{{ replace_with|regex_search('php(-fpm)?([0-9][0-9])?') }}"
+
+- name: Fail if target package is already installed
+  fail:
+    msg: "{{ replace_with }} is already installed! Skipping host.."
+  when: installed_short_name == replace_short_name
+
+- name: Check if the IUS repo is present
+  shell: >-
+    set -o pipefail
+    yum repolist | grep ius | wc -l
+  register: ius_check
+  check_mode: false
+  args:
+    warn: false
+  changed_when: false
+
+- name: Log IUS repository found
+  debug:
+    msg: "The IUS repository is installed on the system"
+  when: ius_check.stdout != "0"
+
+- name: fail when IUS repo is required and not present
+  fail:
+    msg: >
+      IUS repository is NOT installed and is required for checking compatibilities with PHP IUS packages.
+      You can manually set it up on cloud servers by running "curl -s https://setup.ius.io | bash" or using the RHN portal on dedicated devices.
+      Make sure to include the IUS policy prefab in the ticket before doing so.
+  when: ansible_facts.repositories | selectattr("name", "search", "(?i)ius") | length == 0 and (php.php_pkg_source == "ius" or replace_with not in ('php', 'php-fpm'))
+
+- name: Check if yum-plugin-replace is installed
+  shell: >-
+    set -o pipefail
+    rpm -qa yum-plugin-replace | wc -l
+  register: yum_replace_check
+  check_mode: false
+  args:
+    warn: false
+  changed_when: false
+
+- name: Log yum-plugin-replace is installed
+  debug:
+    msg: "yum-plugin-replace is installed on the system"
+  when: yum_replace_check.stdout != "0"
+
+- name: Log yum-plugin-replace not installed
+  debug:
+    msg: "yum-plugin-replace is NOT installed and will be automatically installed in normal run mode"
+  when: yum_replace_check.stdout == "0"
+
+- name: Installing yum-plugin-replace - skipped in check mode or if already installed
+  yum:
+    name: "yum-plugin-replace"
+    state: present
+  when: yum_replace_check.stdout == "0" and not ansible_check_mode

@@ -1,0 +1,51 @@
+---
+
+#
+# Install the Nimbus cluster probe. Since the newest version of cluster probe
+# is not compatible with some older versions of cdm probe, install cdm probe first.
+# This should upgrade it to the latest version if it was already installed.
+#
+
+- name: Remove all SAN FSs from cdm probe config
+  nimbus_config:
+    path: "{{ nimbus_dir }}/probes/system/cdm/cdm.cfg"
+    remove:
+      - ['disk', 'alarm', 'fixed', '^#san#.*']
+
+- name: Install 'cdm' and 'processes' nimbus probes
+  nimbus_config:
+    path: "{{ nimbus_dir }}/request.cfg"
+    update: {"distribution request": {"packages": "cdm,processes"}}
+  notify: restart nimbus
+
+- meta: flush_handlers
+
+# TODO: consider writing a module for this, similar to wait_for, just wait
+# for a process to appear
+- name: Wait for 'cdm' and 'processes' probes to start
+  shell: >-
+    for i in {1..300}; do
+      if [ "`ps aux | egrep 'nimbus\((cdm|processes)\)' | wc -l`" -ge "2" ]; then
+        exit 0
+      fi
+      sleep 1
+    done; echo "Cdm or processes probes didn't appear within time limit!"; exit 1
+  changed_when: False
+
+- name: Install 'cluster' nimbus probe
+  nimbus_config:
+    path: "{{ nimbus_dir }}/request.cfg"
+    update: {"distribution request": {"packages": "cluster"}}
+  notify: restart nimbus
+
+- meta: flush_handlers
+
+- name: Wait for 'cluster' probe to start
+  shell: >-
+    for i in {1..300}; do
+      if [ "`ps aux | egrep 'nimbus\(cluster\)' | wc -l`" -ge "1" ]; then
+        exit 0
+      fi
+      sleep 1
+    done; echo "Cluster probe didn't appear within time limit!"; exit 1
+  changed_when: False

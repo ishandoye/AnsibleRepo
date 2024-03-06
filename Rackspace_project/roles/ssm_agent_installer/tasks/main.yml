@@ -1,0 +1,27 @@
+---
+- name: Check if SSM agent is already installed
+  package_facts:
+    manager: auto
+  no_log: true
+  tags:
+    - always
+
+- name: Include install tasks
+  include_tasks: install.yml
+  args:
+    apply:
+      tags:
+        - install
+  tags:
+    - always
+    - install
+
+- name: Include uninstall tasks
+  include_tasks: uninstall.yml
+  args:
+    apply:
+      tags:
+        - uninstall
+  tags:
+    - never
+    - uninstall

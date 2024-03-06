@@ -1,0 +1,6 @@
+---
+- name: Sync time
+  command: ntpdate -u {{ rs_time_server_fqdn }}
+  environment:
+    PATH: /bin:/sbin:/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin
+...

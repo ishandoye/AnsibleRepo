@@ -1,0 +1,10 @@
+---
+
+- hosts: all
+  become: true
+
+  tasks:
+  - include_role:
+      name: plesk_upgrade_checker
+
+...

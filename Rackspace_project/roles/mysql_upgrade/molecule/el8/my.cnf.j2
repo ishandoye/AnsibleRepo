@@ -1,0 +1,11 @@
+# {{ ansible_managed }}
+
+[client]
+socket   = /var/lib/mysql/mysql.sock
+user     = root
+password = '{{ new_root_pass }}'
+
+[mysql_upgrade]
+socket   = /var/lib/mysql/mysql.sock
+user     = root
+password = '{{ new_root_pass }}'

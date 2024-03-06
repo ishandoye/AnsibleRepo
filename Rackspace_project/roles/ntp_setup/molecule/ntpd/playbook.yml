@@ -1,0 +1,6 @@
+---
+- name: Test Supported Servers
+  hosts: all
+  roles:
+    - role: dummy_raxfacts
+    - role: ntp_setup

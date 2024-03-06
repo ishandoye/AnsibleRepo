@@ -1,0 +1,8 @@
+---
+- name: reload systemd daemon
+  become: true
+  systemd:
+    daemon_reload: "yes"
+  when: ansible_service_mgr == "systemd"
+
+...

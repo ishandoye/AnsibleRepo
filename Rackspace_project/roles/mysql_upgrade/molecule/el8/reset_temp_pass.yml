@@ -1,0 +1,27 @@
+---
+- name: Get temporary password
+  shell: >-
+    grep 'temporary password' /var/log/mysqld.log |
+    awk '{print $NF}' | tail -n 1
+  register: temp_root_password
+
+- name: Set new root password to use
+  set_fact:
+    new_root_pass: '9uaSdh#fas,.D9f&ads78f'
+  when: temp_root_password.stdout
+
+- name: Set root password
+  shell: >-
+    mysqladmin -u root
+    --password="{{ temp_root_password.stdout }}"
+    password "{{ new_root_pass }}"
+  when: temp_root_password.stdout
+
+- name: Copy my.cnf
+  template:
+    src: my.cnf.j2
+    dest: /root/.my.cnf
+    mode: '0600'
+    owner: root
+    group: root
+  when: temp_root_password.stdout

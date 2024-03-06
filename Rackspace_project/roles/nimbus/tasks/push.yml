@@ -1,0 +1,31 @@
+---
+- name: Look for local copy of the installer
+  become: "no"
+  run_once: "yes"
+  stat:
+    path: "/tmp/{{ nimbus_installer }}"
+  register: local_installer
+  delegate_to: localhost
+
+# Fetch the uninstaller only when it does not exist locally
+# or when is stale for 3 days.
+- name: Fetch the installer
+  become: "no"
+  run_once: "yes"
+  get_url:
+    url: "{{ nimbus_url }}"
+    dest: "/tmp/"
+  delegate_to: localhost
+  when: >-
+    ( not local_installer.stat.exists or
+      ( '%j' | strftime(ansible_date_time.epoch) | int -
+        '%j' | strftime(local_installer.stat.ctime) | int
+      ) | abs > 3
+    )
+
+- name: Push installer and unarchive
+  unarchive:
+    remote_src: "no"
+    src: "/tmp/{{ nimbus_installer }}"
+    dest: "~rack"
+...

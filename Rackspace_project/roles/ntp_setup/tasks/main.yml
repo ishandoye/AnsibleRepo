@@ -1,0 +1,62 @@
+---
+- name: Tasks on the controller
+  include_tasks: controller.yml
+
+- name: Gather OS specific variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - files: "{{ custom_os_files }}"
+
+- name: Pre-Installation steps (if any)
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - files:
+        "{{ custom_os_files |
+            map('regex_replace', '^', 'pre-') | list }}"
+      # This prints a warning, but the recommendation does not work
+      # https://github.com/ansible/ansible/issues/58942
+      skip: true
+
+- name: Install required packages
+  package:
+    name: "{{ packages }}"
+    state: present
+    update_cache: "{{ update_pkg_cache }}"
+
+- name: Make sure service is stopped
+  service:
+    name: "{{ service_name }}"
+    state: stopped
+
+- name: Pre-config steps for modern Red Hat distros
+  include_tasks: pre-redhat.yml
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_distribution_major_version in ["7", "8"]
+    - rs_ntp|bool
+
+- name: Configure to use Rackspace configs and time servers
+  template:
+    src: "{{ item[0] }}"
+    dest: "{{ item[1] }}"
+    mode: 0644
+  with_together:
+    - "{{ ntp_config_src }}"
+    - "{{ ntp_config_dest }}"
+  when: (rs_ntp|bool)
+
+- name: Post-Installation steps
+  include_tasks: "{{ item }}"
+  with_first_found:
+    - files:
+        "{{ custom_os_files |
+            map('regex_replace', '^', 'post-') | list }}"
+      # Same as above (https://github.com/ansible/ansible/issues/58942)
+      skip: "true"
+
+- name: Make sure service is running and enabled
+  service:
+    name: "{{ service_name }}"
+    state: restarted
+    enabled: "yes"
+...

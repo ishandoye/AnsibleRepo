@@ -1,0 +1,9 @@
+---
+- name: Install VM tools
+  hosts: all
+  gather_facts: "True"
+  become: "yes"
+  tasks:
+  - include_role:
+      name: vmtools_install
+...

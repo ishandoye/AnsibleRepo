@@ -1,0 +1,26 @@
+---
+- name: connectivity check
+  block:
+    - name: Test access to {{ mirror }}
+      wait_for:
+        host: "{{ mirror }}"
+        port: 80
+        timeout: 5
+
+    - name: Check if OUTBOUND access to RMS servers' ports is possible
+      wait_for:
+        host: "{{ item[0] }}"
+        port: "{{ item[1] }}"
+        timeout: 5
+      with_nested:
+        - "{{ rms_ips[rs_region.lower()] }}"
+        - "{{ rms_ports }}"
+      ignore_errors: "yes"
+      register: rms_ip_port_check_rst
+
+    - name: Fail if a RMS port is inaccessible
+      fail:
+        msg: "Not all RMS ports are accessible. Check last task's results."
+      failed_when: rms_ip_port_check_rst.failed is defined
+  become: "no"
+...

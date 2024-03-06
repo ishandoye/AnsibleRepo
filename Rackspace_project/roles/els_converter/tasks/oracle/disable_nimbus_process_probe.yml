@@ -1,0 +1,12 @@
+---
+- name: Disable rhnsd nimbus process probe
+  become: true
+  replace:
+    path: /opt/nimsoft/probes/system/processes/processes.cfg
+    regexp: "^   <rhnsd>\n      active = yes$"
+    replace: "   <rhnsd>\n      active = no"
+  notify: restart nimbus
+  ignore_errors: true
+
+- name: Flush handlers to ensure nimbus starts now
+  meta: flush_handlers

@@ -1,0 +1,151 @@
+---
+rax_types:
+  - intensive
+  - globalrs
+valid_types: "{{ rax_types + ['customer'] }}"
+dc_map:
+  DFW: Dallas
+  HKG: HongKong
+  IAD: Dulles
+  LON: London
+  ORD: Chicago
+  SAT: SanAntonio
+  SYD: Sydney
+netbiosname: "{{ ansible_hostname[0:15] | upper }}"
+
+# Active directory domain
+ad_domain: >-
+  {{
+    DOMAIN|default(
+      (type == 'intensive')|ternary(
+        DC|default('unknown') + '.intensive.int', 'globalrs.rack.space'),
+      true)
+  }}
+# Netbios Workgroup name - normally the first part of the AD domain
+# (to the first dot in the name)
+workgroup: >-
+  {{ (WORKGROUP == 'magic')|ternary(ad_domain.split('.')[0], WORKGROUP) }}
+# Allowed login groups
+# - for Intensive, defaults to <account>-allusers + <account>-rax
+# - for Customer, defaults to 'n'
+#   (which gets translated to no login restrictions by group)
+allow_groups: >-
+  {{ (ALLOW_GROUPS|default(default_allow_groups[type], true)).split(',') }}
+# Comma-separated list of customer DNS servers is turned to a list
+# List is expected to be empty for Intensive (resolv.conf won't get changed)
+dns_servers: "{{ (DNSSERVERS)|ternary(DNSSERVERS.split(','), []) }}"
+# Quote the password for shell usage now
+join_passwd: "{{ JOINPWD | quote }}"
+# Account for domain join (needs to be able to get a kerberos ticket)
+# If the supplied name DOESN'T contain a '@', append the appropriate
+# domain name (either INTENSIVE.INT or the customer domain name)
+join_account: >-
+  {{ JOINACCT }}
+  {%- if JOINACCT is not search('@') -%}
+  @{{ (type|lower in rax_types)|ternary('INTENSIVE.INT', ad_domain|upper) }}
+  {%- endif -%}
+# Intensive domain puts computers in an OU belonging to the customer account
+# instead of the default 'Computers' OU. But this could also be overridden for
+# specific customer needs if required
+extra_adcli_join_params:
+  intensive: >
+    --host-fqdn={{ netbiosname }}.{{ ad_domain }}
+    --domain-ou='OU={{ rs_customer }},OU=Rax,OU={{
+        dc_map[DC|upper]|default('unknown') }},dc={{
+        DC|default('unknown')|upper }},dc=INTENSIVE,dc=INT'
+  globalrs: >
+    --host-fqdn={{ netbiosname }}.{{ ad_domain }}
+    --domain-ou='OU={{ rs_customer }},OU=Rax,dc=GlobalRS,dc=rack,dc=space'
+  customer: >
+    {{ extra_join_params|default("") }}
+
+# Hosts we'll check that can be resolved by DNS
+# (otherwise package installs won't work)
+# Skip checking these with skip_rackspace_dns if needed
+dns_test_hosts:
+  - mirror.rackspace.com
+  - rax.mirror.rackspace.com
+  - api.rhn.rackspace.com
+skip_rackspace_dns: false
+
+# AD SRV records to check for. Note that for AD, the global catalog record is
+# for intensive.int rather than the dc level domain
+ad_dns_names:
+  - _ldap._tcp.{{ ad_domain }}
+  - _kerberos._tcp.{{ ad_domain }}
+  - "_gc._tcp.{{
+      (type|lower == 'intensive')|ternary('intensive.int', ad_domain)
+    }}"
+
+base_pkgs:
+  - sssd
+  - sssd-tools
+  - adcli
+
+el_base_pkgs:
+  - "{{ base_pkgs }}"
+  - authconfig
+  - krb5-workstation
+  - nss
+  - openldap-clients
+
+deb_base_pkgs:
+  - "{{ base_pkgs }}"
+  - krb5-user
+  - samba-common
+
+os_packages:
+  RedHat:
+    "6":
+      - "{{ el_base_pkgs }}"
+    "7":
+      - "{{ el_base_pkgs }}"
+      - samba-common-tools
+    "8":
+      - "{{ el_base_pkgs }}"
+      - samba-common-tools
+      - sssd-ad
+      - oddjob-mkhomedir
+    "9":
+      - "{{ el_base_pkgs }}"
+      - samba-common-tools
+      - sssd-ad
+      - oddjob-mkhomedir
+  Debian:
+    "14":
+      - "{{ deb_base_pkgs }}"
+    "16":
+      - "{{ deb_base_pkgs }}"
+    "18":
+      - "{{ deb_base_pkgs }}"
+    "20":
+      - "{{ deb_base_pkgs }}"
+    "22":
+      - "{{ deb_base_pkgs }}"
+
+packages: >
+  {{ os_packages[ansible_os_family][ansible_distribution_major_version] |
+     flatten }}
+
+backup_ext: "SSSD-{{ '%Y-%m-%d-%H:%M:%S' | strftime(ansible_date_time.epoch) }}"
+
+# List of minor OS versions that are blocked from working
+os_block_list:
+  RedHat:
+    - "8.0"
+    - "8.1"
+  Debian: []
+# List of major OS versions that are allowed to work
+os_allow_list:
+  RedHat:
+    - "6"
+    - "7"
+    - "8"
+    - "9"
+  Debian:
+    - "14"
+    - "16"
+    - "18"
+    - "20"
+    - "22"
+...

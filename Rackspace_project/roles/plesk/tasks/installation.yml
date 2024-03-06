@@ -1,0 +1,83 @@
+---
+- name: Run preinstallation tasks
+  include_tasks: preinstallation.yml
+
+- name: Download Plesk installer
+  get_url:
+    url: https://autoinstall.plesk.com/plesk-installer
+    dest: /root/plesk-installer
+    force: true
+    mode: "u+x"
+
+# This is needed for Plesk bug PPP-47540
+# Plesk Obsidian installation fails when MySQL Community Server is installed
+# Plesk Onyx does not have this issue so we first install Plesk Onyx then
+# immediately upgrade
+- name: Install Plesk panel when MySQL Community Server is installed
+  block:
+    - name: Install Plesk Onyx
+      command:
+        cmd: >
+          /root/plesk-installer --debug
+          --select-release-id PLESK_17_8_11
+          --select-product-id plesk
+          --install-component panel
+        creates: /usr/local/psa/admin
+
+    - name: Upgrade to latest version in tier
+      command: >
+        /usr/local/psa/admin/sbin/autoinstaller --debug
+        --tier {{ release_tier }}
+        --select-release-latest
+        --upgrade-installed-components
+  when:
+    - packages['mysql-community-server'] is defined
+    - ansible_os_family == "RedHat"
+    - ansible_distribution_major_version == "7"
+
+- name: Install Plesk panel
+  command:
+    cmd: >
+      /root/plesk-installer --debug
+      --tier {{ release_tier }}
+      --select-release-latest
+      --select-product-id plesk
+      --install-component panel
+    creates: /usr/local/psa/admin
+
+# Plesk sets password strength to strong by default
+# This is just making sure.
+- name: Set password strength to strong
+  command: /usr/local/psa/bin/server_pref --update -min_password_strength strong
+
+# This is a hack because ansible doesn't support password requirements
+# See ansible/ansible#46965
+- name: Generate Plesk login password
+  vars:
+    password_char_classes:
+      - ascii_letters
+      - digits
+      - punctuation
+  block:
+    # Plesk's password strength policy is described here:
+    # https://support.plesk.com/hc/en-us/articles/213912245
+    - name: Generate required characters
+      set_fact:
+        plesk_password_stub: "{{ plesk_password_stub|default('') + lookup('password', '/dev/null length=1 chars=' ~item) }}"
+      loop: "{{ password_char_classes }}"
+
+    - name: Generate the rest of the password
+      set_fact:
+        plesk_password: "{{ plesk_password_stub + lookup('password', '/dev/null length=16 chars=ascii_letters,digits,punctuation') }}"
+
+- name: Initialise Plesk configuration
+  command: >
+    /usr/local/psa/bin/init_conf --init
+    -default-ip {{ ansible_default_ipv4['address'] }}
+    -shared_ips add:{{ ansible_default_ipv4['address'] }}
+    -admin_info_not_required false
+    -passwd {{ plesk_password }}
+
+- name: Run postinstallation tasks
+  include_tasks: postinstallation.yml
+...

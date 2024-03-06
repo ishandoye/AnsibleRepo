@@ -1,0 +1,32 @@
+---
+- name: Test mysql_upgrade
+  hosts: all
+  become: true
+  gather_facts: true
+  gather_subset:
+    - min
+  vars:
+    # Variable is typically supplied by hammertime or stepladder
+    rs_platform: "None"
+  tasks:
+    - name: Upgrade to latest version of MariaDB
+      vars:
+        upgrade_version: "10.8"
+      include_role:
+        name: mysql_upgrade
+      when: ("mariadb" in inventory_hostname)
+
+    - name: Upgrade to latest version of MySQL
+      vars:
+        upgrade_version: "8.0"
+      include_role:
+        name: mysql_upgrade
+      when: ("mysql" in inventory_hostname)
+
+    - name: Upgrade to latest version of Percona
+      vars:
+        upgrade_version: "8.0"
+      include_role:
+        name: mysql_upgrade
+      when: ("percona" in inventory_hostname)
+...

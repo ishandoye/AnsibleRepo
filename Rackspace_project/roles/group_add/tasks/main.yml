@@ -1,0 +1,70 @@
+---
+
+- fail:
+    msg: "No group(s) submitted for creation! Please fill in roles/group_add/vars/groups.yml"
+  when: allgroups is undefined or allgroups is none
+
+- name: assert whether issudo value is valid or not
+  assert:
+    that:
+      - ( item.issudo is undefined ) or ( item.issudo | lower | regex_search('^(true|false|yes|no)$') )
+      - ( item.issudoseparate is undefined ) or ( item.issudoseparate | lower | regex_search('^(true|false|yes|no|)$') )
+    msg: "If defined, issudo and issudoseparate only accept yes/no/true/false values (case insensitive)"
+  with_items: '{{ allgroups }}'
+
+- fail:
+    msg: "fail if you want the impossible => no sudoers but separate sudoers file"
+  failed_when: ( item.issudoseparate|bool ) and ( not item.issudo|bool )
+  with_items: '{{ allgroups }}'
+  when: item.issudoseparate is defined and item.issudo is defined
+
+- name: Add group(s) - gid specified
+  group:
+    name: '{{ item.groupname }}'
+    state: present
+    gid: '{{ item.gid }}'
+  with_items: '{{ allgroups }}'
+  when: item.gid is defined
+
+- name: Add group(s) - gid not specified
+  group:
+    name: '{{ item.groupname }}'
+    state: present
+  with_items: '{{ allgroups }}'
+  when: item.gid is undefined
+
+- name: fail if we want a separate sudoers file but include line is not present in /etc/sudoers
+  command: grep '^#includedir /etc/sudoers.d' /etc/sudoers
+  register: checksudoers
+  failed_when: checksudoers.rc != 0
+  changed_when: checksudoers.rc != 0
+  with_items: '{{ allgroups }}'
+  when: >
+    item.issudoseparate|default(False)|bool
+
+  # Only if we want the group to be among sudoers with definition in /etc/sudoers.d/
+- name: Add group(s) to separate sudoers file
+  lineinfile:
+    dest: /etc/sudoers.d/{{ item.groupname }}
+    regexp: '^%{{ item.groupname }}\s'
+    line: '%{{ item.groupname }} {{ item.sudo_definition | default("ALL=(ALL) ALL") }}'
+    validate: '/usr/sbin/visudo -cf %s'
+    create: yes
+    state: present
+  when: >
+    item.issudoseparate|default(False)|bool
+  with_items: '{{ allgroups }}'
+
+  # Only if we want the group to be among sudoers with definition in main sudoers file
+- name: Add group(s) to sudoers
+  lineinfile:
+    dest: /etc/sudoers
+    regexp: '^%{{ item.groupname }}\s'
+    line: '%{{ item.groupname }} {{ item.sudo_definition | default("ALL=(ALL) ALL") }}'
+    validate: '/usr/sbin/visudo -cf %s'
+  when: >
+    item.issudo|default(False)|bool and
+    not item.issudoseparate|default(False)|bool
+  with_items: '{{ allgroups }}'
+
+...

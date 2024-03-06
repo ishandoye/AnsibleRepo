@@ -1,0 +1,10 @@
+---
+- name: Generate SAN storage report
+  hosts: all
+  become: false
+  gather_facts: false
+
+  tasks:
+  - include_role:
+      name: storage_check
+...

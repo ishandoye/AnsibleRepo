@@ -1,0 +1,435 @@
+---
+# Tasks for AD domain join
+
+# ansible-lint rules (the noqa comments):
+# 301 - "Commands should not change things if nothing needs doing"
+#   - all tasks with this tag are always going to need to be run
+# 306 - "Shells that use pipes should set the pipefail option"
+#   - if `echo` fails, `kinit` will also fail - pipefail won't change that...
+
+- name: Verify that the OS is allowed
+  assert:
+    that:
+      - ansible_distribution_version not in os_block_list[ansible_os_family]
+      - ansible_distribution_major_version in os_allow_list[ansible_os_family]
+    fail_msg: >-
+      {{ ansible_distribution }} {{ ansible_distribution_version }} is not
+      supported by this playbook
+
+# Input validation
+# - AD type is known (one of 'intensive', 'globalrs', 'customer')
+# - For intensive AD join:
+#   - DC is known to the playbook
+#   - customer ID was supplied
+# - For customer AD join:
+#   - DOMAIN has some value
+#   - 7 chars is the minimum length for a single IP for DNSSERVERS
+# - Credentials for an account to join the domain are provided
+- name: Verify variables are ok to proceed
+  assert:
+    that:
+      - type|lower in valid_types
+      - type|lower != 'intensive' or DC|upper in dc_map
+      - type|lower not in rax_types or rs_customer|length > 0
+      - type|lower in rax_types or DOMAIN|length > 2
+      - type|lower in rax_types or DNSSERVERS|length > 6
+      - JOINACCT|length > 0
+
+- name: Verify username is not DOMAIN\username format
+  assert:
+    that:
+      - not '\\' in JOINACCT
+    fail_msg: >-
+      Username should be supplied as either `username@domain.name` or just
+      `username` (and we'll automatically add the correct domain name to it)
+
+- name: Install required packages
+  package:
+    name: "{{ packages }}"
+    state: present
+    update_cache: true
+
+- name: Read any existing keytab entries
+  command: /usr/bin/klist -k
+  register: keytab_entries
+  changed_when: false
+  failed_when: false
+
+- name: Check if server might already be joined to domain
+  assert:
+    that: keytab_entries.stdout is not
+      search(netbiosname + '@' + ad_domain|upper)
+    fail_msg: >-
+      /etc/krb5.conf already contains an entry for this host
+      and you selected not to join AD again
+  when: keytab_entries.rc == 0 and JOINAGAIN|lower == "n"
+
+# Check that DNS resolves properly
+# For a customer domain join, we MUST be provided with DNS server IPs to use
+# For intensive, we should read the current IPs from /etc/resolv.conf
+- name: Find current DNS server IPs
+  block:
+    - name: Read /etc/resolv.conf
+      slurp:
+        src: /etc/resolv.conf
+      register: resolvconf
+
+    - name: Extract nameservers from /etc/resolv.conf
+      set_fact:
+        dns_servers: >-
+          {{
+            resolvconf['content'] | b64decode |
+            regex_findall('\s*nameserver\s+(.*)')
+          }}
+      failed_when: dns_servers|length == 0
+  when: dns_servers|length == 0
+
+- name: Test that common Rackspace hostnames can be resolved
+  command: host {{ item[0] }} {{ item[1] }}
+  changed_when: false
+  loop: "{{ dns_test_hosts | product(dns_servers[0:3]) | list }}"
+  loop_control:
+    label: "{{ item[0] }} @{{ item [1] }}"
+  when: not skip_rackspace_dns|bool
+
+- name: Test that sample AD SRV records can be resolved
+  command: host -t SRV {{ item[0] }} {{ item[1] }}
+  changed_when: false
+  loop: "{{ ad_dns_names | product(dns_servers[0:3]) | list }}"
+  loop_control:
+    label: "{{ item[0] }} @{{ item [1] }}"
+
+- name: Check authconfig symlinks on EL7
+  block:
+    - name: >
+        Read status of pam config files that should be symlinks for authconfig
+      stat:
+        path: /etc/pam.d/{{ item }}
+      register: ac_files
+      loop:
+        - password-auth
+        - system-auth
+
+    - name: Verify the pam config files are symlinks for authconfig
+      assert:
+        that:
+          - item.stat.islnk is defined
+          - item.stat.islnk
+          - item.stat.lnk_source == item.stat.path ~ '-ac'
+        fail_msg: >-
+          /etc/pam.d/{{ item.item }} is not a symlink to the authconfig file
+          (/etc/pam.d/{{ item.item }}-ac)
+        quiet: true
+      loop: "{{ ac_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+  when:
+    - ansible_os_family == 'RedHat'
+    - ansible_distribution_major_version|int == 7
+
+# Note that we need to do this before trying to get a kerberos ticket
+# as the KDC for the realm may only be resolvable via these DNS servers
+- name: Update resolv.conf with customer DNS servers
+  template:
+    src: templates/resolv.conf.j2
+    dest: "{{ resolv_conf }}"
+  when: type|lower not in rax_types
+
+# This has to be done before trying to get a kerberos ticket,
+# because the existing config may be set not to use DNS to lookup
+# the KDC server (thanks, RHEL6...)
+- name: Create kr5b.conf
+  template:
+    src: templates/krb5.conf.j2
+    dest: /etc/krb5.conf
+    owner: root
+    group: root
+    mode: 0644
+    backup: true
+
+# On RHEL8, the system crypto policy needs to be updated specifically to
+# allow kerberos to communicate with AD servers
+- name: Fix RHEL8+ crypto policy
+  block:
+    - name: Read current crypto policy
+      command: /usr/bin/update-crypto-policies --show
+      register: crypto_policy
+      changed_when: false
+
+    - name: Add AD-SUPPORT to crypto policy (RHEL 8.3+)
+      command: >-
+        /usr/bin/update-crypto-policies
+        --set {{ crypto_policy.stdout }}:AD-SUPPORT
+      when:
+        - ansible_distribution_major_version|int == 8
+        - crypto_policy.stdout is not search('AD-SUPPORT')
+        - ansible_distribution_version not in ["8.0", "8.1", "8.2"]
+
+    - name: Add AD-SUPPORT-LEGACY to crypto policy (EL9)
+      command: >-
+        /usr/bin/update-crypto-policies
+        --set {{ crypto_policy.stdout }}:AD-SUPPORT-LEGACY
+      when:
+        - ansible_distribution_major_version|int == 9
+        - crypto_policy.stdout is not search('AD-SUPPORT')
+
+    - name: Create AD crypto policy (RHEL 8.2 only)
+      copy:
+        src: rh8_2_ad_crypto_policy
+        dest: /etc/crypto-policies/policies/modules/RS-AD-SUPPORT.pmod
+        owner: root
+        group: root
+        mode: 0644
+        selevel: s0
+        seuser: system_u
+        serole: object_r
+        setype: etc_t
+      when: ansible_distribution_version == "8.2"
+
+    - name: Add RS-AD-SUPPORT to crypto policy (RHEL 8.2)
+      command: >-
+        /usr/bin/update-crypto-policies
+        --set {{ crypto_policy.stdout }}:RS-AD-SUPPORT
+      when:
+        - crypto_policy.stdout is not search('RS-AD-SUPPORT')
+        - ansible_distribution_version == "8.2"
+  when:
+    - ansible_os_family == 'RedHat'
+    - ansible_distribution_major_version|int >= 8
+
+# If kdestroy DOESN'T print something like
+# kestroy: No credentials cache found while destroying cache
+# to stderr, we'll assume it actually made a change & destroyed something
+- name: Destroy any existing kerberos user tickets
+  command: /usr/bin/kdestroy -c /tmp/krb5cc_0  # noqa 301
+  register: kdestroy_rslt
+  changed_when: kdestroy_rslt.stderr is not search('No credentials cache found')
+
+# Check we can get a ticket now so that we fail immediately if our credentials
+# are wrong, before we make any other changes to the server
+# Note that we explicitly set the cache location in case the default config
+# is putting it somewhere else (looking at you, RHEL8...)
+- name: Check we can obtain a kerberos user ticket  # noqa 301 306
+  shell: >
+    echo {{ join_passwd }} | kinit -C -c /tmp/krb5cc_0 {{ join_account|quote }}
+  register: kinit_rslt
+  failed_when: false
+  changed_when: kinit_rslt.rc|int == 0
+  no_log: true
+
+# This is a separate explicit fail step in order to avoid printing user creds
+# in the output (which would happen if we just left the previous step fail),
+# but we do want to report what the cause of the failure was to the user
+- name: Fail if we didn't get a kerberos ticket
+  fail:
+    msg: "{{ kinit_rslt.stderr }}"
+  when: kinit_rslt.rc|int != 0
+
+- name: Block to ensure we always delete user kerberos ticket
+  block:
+    - name: Remove any existing keytab
+      command: mv /etc/krb5.keytab /etc/krb5.keytab.{{ backup_ext }}
+      args:
+        creates: /etc/krb5.keytab.{{ backup_ext }}
+      when: keytab_entries.rc == 0
+
+    - name: Stop & disable any conflicting services (nscd, winbind, nslcd)
+      service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
+        - nscd
+        - nslcd
+        - winbind
+      failed_when: false
+
+    - name: Mask any conflicting services (nscd, winbind, nslcd)
+      systemd:
+        name: "{{ item }}"
+        masked: true
+      loop:
+        - nscd
+        - nslcd
+        - winbind
+      when:
+        - not (ansible_os_family == 'RedHat' and
+               ansible_distribution_major_version|int == 6)
+        - not (ansible_os_family == 'Debian' and
+               ansible_distribution_major_version|int == 14)
+
+    - name: Ensure sssd is stopped
+      service:
+        name: sssd
+        state: stopped
+
+    # Note that sss_cache -E doesn't necessarily invalidate the entire cache
+    # Nuking it from disk while SSSD is stopped definitely does...
+    - name: Clear any sssd cache entries  # noqa 301
+      command: >
+        /usr/bin/find /var/lib/sss/db /var/lib/sss/mc /var/lib/sss/pubconf
+        -type f -delete
+
+    - name: Ensure /etc/samba exists
+      file:
+        path: /etc/samba
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: Create smb.conf
+      template:
+        src: templates/smb.conf.j2
+        dest: /etc/samba/smb.conf
+        owner: root
+        group: root
+        mode: 0644
+        backup: true
+
+    - name: Join the domain  # noqa 301
+      command: >
+        /usr/sbin/adcli join --login-ccache=/tmp/krb5cc_0
+        --domain={{ ad_domain|lower }}
+        --computer-name={{ netbiosname }}
+        {{ extra_adcli_join_params[type]|default('') }}
+
+    - name: Wait 30s to let AD sync
+      wait_for:
+        timeout: 30
+
+    # Retry failures for 5 minutes in case sync is really slow
+    # Don't give up if we fail - tell the user at the end to do
+    # this task manually instead
+    - name: Add computer to {{ rs_customer }}-AllUsers group  # noqa 301
+      command: >
+        /usr/sbin/adcli add-member --login-ccache=/tmp/krb5cc_0
+        --domain={{ ad_domain|lower }}
+        {{ rs_customer }}-AllUsers "{{ netbiosname }}$"
+      register: add_group_rslt
+      until: add_group_rslt.rc == 0
+      delay: 30
+      retries: 2
+      ignore_errors: true
+      when: type|lower in rax_types
+
+    - name: Configure sssd
+      template:
+        src: templates/sssd.{{ type }}.conf.j2
+        dest: /etc/sssd/sssd.conf
+        owner: root
+        group: root
+        mode: 0600
+        backup: true
+
+    - name: Configure sudoers for {{ rs_customer }}-RAX group
+      template:
+        src: templates/rax_sudoers.j2
+        dest: /etc/sudoers.d/rax
+        owner: root
+        group: root
+        mode: 0440
+      when: type|lower in rax_types
+
+    - name: Set UID_MAX & GID_MAX to 5000 to avoid conflicts with AD
+      lineinfile:
+        dest: /etc/login.defs
+        regexp: "^{{ item }}"
+        line: "{{ item }}                  5000"
+      loop:
+        - UID_MAX
+        - GID_MAX
+
+    - name: Configure auth (EL6 & EL7)
+      block:
+        - name: Ensure /root/.rackspace directory exists
+          file:
+            path: /root/.rackspace
+            state: directory
+            owner: root
+            group: root
+            mode: 0755
+
+        - name: Backup authconfig
+          command: >
+            /usr/sbin/authconfig --savebackup=/root/.rackspace/{{ backup_ext }}
+
+        - name: Apply authconfig
+          command: >
+            /usr/sbin/authconfig
+            --update
+            --enablesssd
+            --enablesssdauth
+            --enablemkhomedir
+            --disableldap
+            --disableldapauth
+            --disablekrb5
+            --disablewinbind
+            --disablewinbindauth
+            --disablefingerprint
+      when:
+        - ansible_os_family == 'RedHat'
+        - ansible_distribution_major_version|int in [6,7]
+
+    - name: Configure auth (EL8+)
+      block:
+        - name: Configure auth
+          command: >
+            /usr/bin/authselect select sssd with-mkhomedir
+            --backup={{ backup_ext }}
+
+        - name: Enable oddjobd for automatic homedir creation
+          service:
+            name: oddjobd
+            enabled: true
+            state: started
+      when:
+        - ansible_os_family == 'RedHat'
+        - ansible_distribution_major_version|int >= 8
+
+    - name: Configure pam_mkhomedir on Ubuntu
+      pamd:
+        name: common-session
+        type: session
+        control: optional
+        module_path: pam_sss.so
+        new_type: session
+        new_control: optional
+        new_module_path: pam_mkhomedir.so
+        state: after
+      when: ansible_os_family == 'Debian'
+
+    - name: Start SSSD
+      service:
+        name: sssd
+        state: started
+        enabled: true
+  always:
+    # If kdestroy DOESN'T print something like
+    # kestroy: No credentials cache found while destroying cache
+    # to stderr, we'll assume it actually made a change & destroyed something
+    - name: Destroy any existing kerberos user tickets
+      command: /usr/bin/kdestroy -c /tmp/krb5cc_0  # noqa 301
+      register: kdestroy_rslt
+      changed_when: >
+        kdestroy_rslt.stderr is not search('No credentials cache found')
+
+- name: Report if too many dns servers are defined
+  debug:
+    msg: >-
+      WARNING!! There are more than 3 DNS servers defined. Linux will only ever
+      use the first 3 listed nameservers in /etc/resolv.conf for name resolution
+  when: dns_servers|length > 3
+
+- name: Manual step
+  fail:
+    msg: >-
+      IMPORTANT!! We failed to automatically add the machine account
+      {{ netbiosname }}@{{ ad_domain|upper }} to the {{ rs_customer }}-AllUsers
+      group. You will need to carry this task out manually on a
+      {{ ad_domain|upper }} domain controller, and then restart SSSD.
+      Please review previous error messages - if the device was previously
+      joined to AD, this task may legitimately fail due to the group membership
+      already being present
+  when: add_group_rslt is not skipped and add_group_rslt.rc != 0
+...

@@ -1,0 +1,17 @@
+---
+- name: Configure Repository Debian/Ubuntu
+  apt_repository:
+    repo: 'deb http://apt.newrelic.com/debian/ newrelic non-free'
+    state: present
+    update_cache: yes
+
+- name: Add GPG Key
+  apt_key:
+    url: 'https://download.newrelic.com/548C16BF.gpg'
+    state: present
+
+- name: Debian | Install New Relic PHP Agent
+  apt:
+    pkg: newrelic-php5
+    state: latest
+    allow_unauthenticated: yes

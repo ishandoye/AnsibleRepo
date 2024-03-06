@@ -1,0 +1,12 @@
+
+  - name: Get facts
+    become: true
+    raxfacts: facts={{raxfacts_facts}} debug={{ true if raxfacts_debug is defined and raxfacts_debug == true else false}}
+    register: raxfacts_outer
+    when: raxfacts_facts is defined
+
+  # Strip the mandatory ansible_facts key to prevent RSI
+  - name: Expose facts
+    set_fact:
+        raxfacts: "{{ raxfacts_outer.ansible_facts }}"
+    when: raxfacts_outer is defined

@@ -1,0 +1,23 @@
+---
+- name: Create chrony.d directory
+  file:
+    path: /etc/chrony.d
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Include custom config in chronyd.conf
+  lineinfile:
+    path: /etc/chrony.conf
+    state: present
+    line: 'include /etc/chrony.d/*.conf'
+
+- name: Change chrony daemon options
+  lineinfile:
+    path: /etc/sysconfig/chronyd
+    regexp: '^OPTIONS=""'
+    line: 'OPTIONS="-4"'
+    state: present
+
+...

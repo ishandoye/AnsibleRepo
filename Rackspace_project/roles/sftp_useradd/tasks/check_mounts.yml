@@ -1,0 +1,20 @@
+- name: Verifying multi_mount
+  assert:
+    that:
+      - "'real_mount' in item"
+      - "'bind_mount' in item"
+    fail_msg: >
+      Failed to validate 'multi_mount'; 'real_mount' or 'bind_mount' missing
+      from item
+    quiet: true
+  loop: "{{ multi_mount }}"
+  when: multi_mount is defined
+
+- name: Create all_mounts list if "real_mount" exists
+  set_fact:
+    all_mounts: "{{ [{'real_mount': real_mount, 'bind_mount': bind_mount}] }}"
+  when: real_mount is defined
+
+- name: Create and/or combine all_mounts list with multi_mounts list
+  set_fact:
+    all_mounts: "{{ all_mounts|default([]) + multi_mount|default([]) }}"

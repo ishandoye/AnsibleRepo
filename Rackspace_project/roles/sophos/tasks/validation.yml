@@ -1,0 +1,42 @@
+---
+- name: Check if sophos is installed
+  stat:
+    path: "{{ sophos_bin_dir }}/savdstatus"
+  register: sophos_installed
+
+- name: Read hostname
+  shell: "cat {{ sophos_install_dir }}/etc/hostname 2>/dev/null || true"
+  register: s_hostname
+  changed_when: "false"
+
+- name: Read description
+  shell: "cat {{ sophos_install_dir }}/etc/description 2>/dev/null || true"
+  register: s_desc
+  changed_when: "false"
+
+- name: Validate the IDs
+  fail:
+    msg: |
+      "The ID files of the current installation of sophos:"
+      "- {{ sophos_install_dir }}/etc/hostname"
+      "- {{ sophos_install_dir }}/etc/description"
+      "Are not present or do not match the expected values(server or customer)"
+      "Current:"
+      "account: '{{ s_desc.stdout }}', device: '{{ s_hostname.stdout }}'"
+      "Expected:"
+      "account: '{{ rs_customer }}', device: '{{ rs_server }}'"
+  failed_when: "false"
+  when: >
+    sophos_installed.stat.exists and
+    ( s_hostname.stdout != rs_server|string or
+      s_desc.stdout != rs_customer|string )
+
+- name: Force reinstall due to mismatched configuration
+  set_fact:
+    force: "yes"
+  when: >
+    sophos_installed.stat.exists and
+    ( s_hostname.stdout != rs_server|string or
+    s_desc.stdout != rs_customer|string ) and
+    remove is undefined
+...

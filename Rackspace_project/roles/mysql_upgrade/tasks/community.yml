@@ -1,0 +1,86 @@
+---
+- name: Install MySQL server from community repo for Red Hat
+  block:
+  - name: Import the MySQL RPM 2022 key
+    rpm_key:
+      state: present
+      key: https://repo.mysql.com/RPM-GPG-KEY-mysql-2022
+
+  - name: Import the MySQL RPM key
+    rpm_key:
+      state: present
+      key: https://repo.mysql.com/RPM-GPG-KEY-mysql
+
+  - name: Install MySQL community repo
+    package:
+      name: "{{ mysql_community_repo_url }}"
+      state: present
+
+  - name: Disable all enabled mysql community repositories
+    yum_repository:
+      name: mysql{{ item | regex_replace('\.') }}-community
+      file: mysql-community
+      baseurl: http://repo.mysql.com/yum/mysql-{{ item }}-community/el/{{ ansible_distribution_major_version }}/$basearch/
+      description: "MySQL {{ item }} Community Server"
+      enabled: false
+      gpgkey:
+        - "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-mysql-2022"
+        - "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-mysql"
+    loop:
+      - "5.5"
+      - "5.6"
+      - "5.7"
+      - "8.0"
+
+  - name: Enable MySQL community for MySQL {{ mysql_new_version }}
+    yum_repository:
+      name: mysql{{ mysql_new_version | regex_replace('\.') }}-community
+      file: mysql-community
+      baseurl: http://repo.mysql.com/yum/mysql-{{ mysql_new_version }}-community/el/{{ ansible_distribution_major_version }}/$basearch/
+      description: "MySQL {{ mysql_new_version }} Community Server"
+      enabled: true
+      gpgkey:
+        - "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-mysql-2022"
+        - "file:///etc/pki/rpm-gpg/RPM-GPG-KEY-mysql"
+      gpgcheck: true
+
+  - name: Install MySQL community server packages
+    package:
+      name: mysql-community-server
+      state: present
+      update_cache: true
+  when: ansible_os_family == "RedHat"
+
+- name: Install MySQL server from community repo for Ubuntu
+  block:
+    - name: Install mysql-apt-config package
+      apt:
+        deb: https://dev.mysql.com/get/mysql-apt-config_0.8.22-1_all.deb
+
+    - name: Update debconf database for targeted MySQL version
+      debconf:
+        name: mysql-apt-config
+        question: mysql-apt-config/select-server
+        value: mysql-{{ mysql_new_version }}
+        vtype: select
+      register: version_reconfigure
+
+    - name: Update debconf database to select product
+      debconf:
+        name: mysql-apt-config
+        question: mysql-apt-config/select-product
+        value: Ok
+        vtype: select
+      register: select_product_reconfigure
+
+    - name: Reconfigure mysql-apt-config deb
+      command: dpkg-reconfigure mysql-apt-config
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+      when: version_reconfigure.changed or select_product_reconfigure.changed
+
+    - name: Install mysql-server
+      apt:
+        name: mysql-community-server
+        update_cache: true
+  when: ansible_distribution == "Ubuntu"

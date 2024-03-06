@@ -1,0 +1,10 @@
+---
+- name: Test uninstalling Sophos
+  hosts: all
+  gather_facts: true
+  roles:
+    - role: dummy_raxfacts
+    - role: sophos
+      vars:
+        remove: true
+...

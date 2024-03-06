@@ -1,0 +1,17 @@
+---
+- name: Verify cookies are not present
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Include role vars
+      include_vars: ../../vars/main.yml
+
+    - name: Check presence of cookies directory
+      stat:
+        path: "{{ COOKIE_DIR }}"
+      register: cookies_dir_stat
+
+    - name: Verify directory does not exist
+      assert:
+        that: cookies_dir_stat.stat.exists is false
+...

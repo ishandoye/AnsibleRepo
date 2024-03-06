@@ -1,0 +1,82 @@
+---
+- name: Remove cookies
+  when: remove|bool
+  block:
+    - name: Delete cookie directory
+      file:
+        path: "{{ COOKIE_DIR }}"
+        state: absent
+
+- name: Create cookies
+  when: not remove|bool
+  block:
+    - name: Create {{ COOKIE_DIR }}
+      file:
+        path: "{{ COOKIE_DIR }}"
+        state: directory
+        mode: 0755
+
+    - name: Cookie - {{ COOKIE_FILES['CUSTOMER'] }}
+      copy:
+        content: "{{ rs_customer }}\n"
+        dest: "{{ COOKIE_FILES['CUSTOMER'] }}"
+        mode: 0644
+
+    - name: Cookie - {{ COOKIE_FILES['DATACENTER'] }}
+      copy:
+        content: "{{ rs_datacenter }}\n"
+        dest: "{{ COOKIE_FILES['DATACENTER'] }}"
+        mode: 0644
+
+    - name: Cookie - {{ COOKIE_FILES['SERVER'] }}
+      copy:
+        content: "{{ rs_server | string }}\n"
+        dest: "{{ COOKIE_FILES['SERVER'] }}"
+        mode: 0644
+
+    - name: Cookie - {{ COOKIE_FILES['SEGMENT'] }}
+      copy:
+        content: "{{ rs_target_sla }}\n"
+        dest: "{{ COOKIE_FILES['SEGMENT'] }}"
+        mode: 0644
+
+    - name: Cookie - {{ COOKIE_FILES['PRIMARY_USER'] }}
+      copy:
+        content: "{{ rs_ctkapi_info['primary_userid'] }}\n"
+        dest: "{{ COOKIE_FILES['PRIMARY_USER'] }}"
+        mode: 0644
+
+    - name: Cookie - kick_dates
+      copy:
+        content: "{{ '%F %T %z' | strftime }}\n"
+        dest: "{{ COOKIE_FILES['KICK_DATE'] }}"
+        mode: 0644
+
+    - name: Obtain os-release file
+      shell: "stat --format='%n' {{ os_info_files | join(' ') }} || true"
+      register: os_file
+      changed_when: false
+      check_mode: false
+
+    - name: Cookie - kick
+      copy:
+        src: "{{ os_file.stdout_lines[0] }}"
+        dest: "{{ COOKIE_FILES['KICK'] }}"
+        mode: 0644
+        remote_src: true
+      when: os_file.stdout_lines | length > 0
+
+    - name: Create {{ NOADC_DIR }}
+      file:
+        path: "{{ NOADC_DIR }}"
+        state: directory
+        mode: 0755
+
+    - name: Create {{ NOADC_FILE }}
+      copy:
+        content: >
+          Do not remove this file unless you are forcing a re-run of the ADC
+          process.
+        dest: "{{ NOADC_FILE }}"
+        mode: 0644
+...

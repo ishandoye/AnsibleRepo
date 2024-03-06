@@ -1,0 +1,16 @@
+---
+- name: Create/set permissions to the real_mount directory
+  file:
+    path: "{{ mount_path }}"
+    state: directory
+    mode: 02775
+    owner: root
+    group: "{{ sftp_group }}"
+
+- name: Bind mount the folder
+  mount:
+    path: "/home/chroot/{{ sftp_user }}/{{ mount_dir }}"
+    src: "{{ mount_path }}"
+    fstype: none
+    opts: bind
+    state: mounted

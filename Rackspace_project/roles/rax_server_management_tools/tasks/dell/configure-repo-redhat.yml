@@ -1,0 +1,14 @@
+---
+
+- name: Import dell gpg keys
+  rpm_key:
+    state: present
+    key: "{{ dell_gpgkey_url }}"
+
+- name: Configure dell-system-update yum repo
+  template:
+    src: dell-system-update.repo.j2
+    dest: /etc/yum.repos.d/dell-system-update.repo
+    owner: root
+    group: root
+    mode: 0644

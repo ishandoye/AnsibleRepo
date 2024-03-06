@@ -1,0 +1,16 @@
+---
+- name: Install and Configure NTP service
+  hosts: all
+  gather_facts: "yes"
+  become: "yes"
+  pre_tasks:
+    - name: ACE pre-tasks
+      block:
+        - name: Get CORE data when using ACE
+          include_tasks: ace.yml
+      delegate_to: localhost
+      when: config_id is defined
+  tasks:
+  - include_role:
+      name: ntp_setup
+...

@@ -1,0 +1,5 @@
+---
+# defaults for storage_check role
+report_filename: './storage_check.csv'
+screen_output: false
+...

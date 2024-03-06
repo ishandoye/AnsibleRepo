@@ -1,0 +1,11 @@
+---
+- name: Delete cookies
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Delete cookies
+      vars:
+        remove: true
+      include_role:
+        name: rscookies_create
+...

@@ -1,0 +1,51 @@
+---
+- name: Verify Token
+  block:
+    - name: Read token
+      shell: "cat {{ cache_file }} 2>/dev/null || true"
+      register: cache_token
+      changed_when: "false"
+      check_mode: false
+
+    - name: Verify token
+      retries: 3
+      delay: 1
+      until: verify_token.status == 200
+      uri:
+        url: "{{ rpc_url }}"
+        method: POST
+        body_format: json
+        body:
+          action: "{{ api_actions['verify'] }}"
+          token: "{{ cache_token.stdout }}"
+        headers:
+          X-Auth: "{{ cache_token.stdout }}"
+      register: verify_token
+      when: cache_token.stdout_lines | length > 0
+      failed_when: "false"
+      changed_when: false
+      check_mode: false
+
+
+    - name: Set valid token
+      set_fact:
+        is_valid_token: "true"
+        token: "{{ cache_token.stdout }}"
+      when: >
+        cache_token.stdout_lines | length > 0 and
+        verify_token.json.status_code == 200
+
+    - name: Fail if cached token is invalid
+      fail:
+        msg: >
+          The cached token is invalid, to obtain a new valid token run playbook
+          rax_ubuntu_repo_auth.yml
+      failed_when: >
+        cache_token.stdout_lines | length == 0 or
+        verify_token.json.status_code != 200
+      no_log: "false"
+  run_once: "yes"
+  become: "no"
+  delegate_to: localhost
+  no_log: "true"
+...

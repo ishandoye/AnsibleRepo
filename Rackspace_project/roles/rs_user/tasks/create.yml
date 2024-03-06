@@ -1,0 +1,41 @@
+---
+- name: Load custom variables
+  include_vars: "{{ ansible_os_family|lower }}.yml"
+
+- name: Create default groups
+  group:
+    name: "{{ item.name }}"
+    state: present
+    gid: "{{ item.gid }}"
+  loop: "{{ req_groups }}"
+
+- name: Create password hash
+  include_tasks: password_hash.yml
+
+- name: Create rack user
+  user:
+    name: rack
+    shell: /bin/bash
+    groups: "{{ group_list }}"
+    password: "{{ rack_hash }}"
+    update_password: always
+  no_log: true
+
+- name: Add rack to sudoers
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^%rack\s'
+    line: '%rack ALL=(ALL) ALL'
+    validate: '/usr/sbin/visudo -cf %s'
+
+# ADC disables requiretty for all distros
+# This allows ansible pipelining to be enabled
+- name: Disable requiretty in sudoers
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^Defaults\w+requiretty$'
+    line: '#Defaults    requiretty'
+    validate: '/usr/sbin/visudo -cf %s'
+...

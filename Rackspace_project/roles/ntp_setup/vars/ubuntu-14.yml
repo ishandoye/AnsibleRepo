@@ -1,0 +1,8 @@
+---
+service_name: ntp
+ntp_config_src: "{{ service_name }}.conf.{{ ansible_distribution | lower }}"
+ntp_config_dest: "/etc/{{ service_name }}.conf"
+packages:
+  - "{{ service_name }}"
+update_pkg_cache: "yes"
+...

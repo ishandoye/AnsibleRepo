@@ -1,0 +1,13 @@
+---
+- name: Check if registered
+  shell: "{{ rsinv_cmd }} -p"
+  register: rsinv_verification
+  failed_when: "false"
+  changed_when: "false"
+  check_mode: false
+
+- name: Set registration fact
+  set_fact:
+    registered: >-
+      {{ true if rsinv_verification.rc == 0 else false }}
+...

@@ -1,0 +1,4 @@
+---
+# Valid options are: rsyslog, syslog-ng
+syslog_daemon: "rsyslog"
+...

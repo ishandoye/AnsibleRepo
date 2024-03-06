@@ -1,0 +1,11 @@
+---
+DOMAIN: "{{ customer_domain }}"
+DNSSERVERS: "{{ customer_dns_servers }}"
+WORKGROUP: "{{ customer_workgroup }}"
+JOINACCT: "{{ int_username }}"
+JOINPWD: "{{ int_password }}"
+ALLOW_GROUPS: "n"
+resolv_conf: "/etc/resolv.conf.molecule"
+extra_join_params: >
+  --host-fqdn={{ netbiosname }}.{{ ad_domain }}
+  --domain-ou='OU={{ rs_customer }},OU=Rax,dc=GlobalRS,dc=rack,dc=space'

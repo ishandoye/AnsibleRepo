@@ -1,0 +1,12 @@
+---
+- name: Sync time (EL7)
+  command: /usr/sbin/chronyd -q 'server {{ rs_time_server_fqdn }} iburst'
+
+- name: Remove pid file
+  file:
+    path: "/var/run/{{ service_name }}.pid"
+    state: absent
+
+- name: Enable NTP based network time synchronization (EL7)
+  command: /bin/timedatectl set-ntp yes
+...

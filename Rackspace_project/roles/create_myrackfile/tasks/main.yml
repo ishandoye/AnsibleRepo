@@ -1,0 +1,22 @@
+---
+# tasks file for create_myrackfile
+- block:
+  - name: Create a MyRackFile with an associated device
+    include_tasks: myrackfile_server.yml
+    when: rs_server is defined
+  - name: Create a MyRackFile without an associated device
+    include_tasks: myrackfile_account.yml
+    when: rs_server is not defined
+  - name: Verify MyRackFile creation
+    assert:
+      that:
+        - myrackfile_results.changed
+      success_msg: >
+        Success: The file {{ myrackfile_results.msg.name }} was successfully created
+        in the customer portal with the provided file content.
+      fail_msg: >
+        Failed: The MyRackFile was not created. This module is idempotent so if an exact
+        file name and content already exists then the task will be skipped.
+    when: myrackfile_results.changed
+  delegate_to: localhost
+...

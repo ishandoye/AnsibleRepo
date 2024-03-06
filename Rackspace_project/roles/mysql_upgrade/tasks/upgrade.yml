@@ -1,0 +1,31 @@
+---
+- name: Check tmp and symlinks
+  include: check_tmp.yml
+
+- name: Restart MySQL
+  service:
+    name: "{{ mysql_service_name }}"
+    state: restarted
+
+- name: Show current mysql version
+  debug:
+    msg: "{{ mysql_new_version }}"
+
+- name: Run MySQL upgrade
+  command: mysql_upgrade
+  async: "{{ backup_time | default(7200, true) }}"
+  poll: 10
+  when:
+    - mysql_master == "No"
+
+- name: Run MySQL upgrade
+  command: mysql_upgrade --skip-write-binlog
+  async: "{{ backup_time | default(7200, true) }}"
+  poll: 10
+  when:
+    - mysql_master == "Yes"
+
+- name: Restart MySQL
+  service:
+    name: "{{ mysql_service_name }}"
+    state: restarted

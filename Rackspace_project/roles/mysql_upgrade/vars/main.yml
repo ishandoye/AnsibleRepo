@@ -1,0 +1,17 @@
+# List of minor OS versions that are blocked from working
+os_block_list:
+  RedHat: []
+  Debian: []
+# List of major OS versions that are allowed to work
+os_allow_list:
+  RedHat:
+    - "7"
+    - "8"
+  Debian:
+    - "18"
+    - "20"
+yum_config_mgr_cmd:
+  6: /usr/bin/yum-config-manager
+  7: /usr/bin/yum-config-manager
+  8: /usr/bin/dnf config-manager --dump *
+  9: /usr/bin/dnf config-manager --dump *

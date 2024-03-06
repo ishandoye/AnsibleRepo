@@ -1,0 +1,22 @@
+- name: verify php7.0-fpm is running
+  stat:
+    path: "{{ php7_fpm_pid_path }}"
+  register: fpm7_pid
+
+- name: verify no syntax errors on php-fpm
+  command: php-fpm7.0 -t
+  when: fpm7_pid.stat.exists == True
+  register: php7_fpm_config_result
+  ignore_errors: yes
+
+- name: php-fpm config test results
+  fail:
+    msg: "php-fpm config Error please check manaully"
+  when: php7_fpm_config_result is failed
+
+- name: restarting php-fpm
+  debug:
+     msg: "Restarting php7-fpm service"
+  when: fpm7_pid.stat.exists == True and php7_fpm_config_result is success
+  changed_when: true
+  notify: restart php7-fpm

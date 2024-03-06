@@ -1,0 +1,10 @@
+---
+core_name: chrony
+service_name: "{{ core_name }}d"
+ntp_config_src:
+  - "{{ core_name }}.conf.j2"
+ntp_config_dest:
+  - "/etc/chrony.d/rs.conf"
+packages:
+  - "{{ core_name }}"
+...

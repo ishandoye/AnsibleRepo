@@ -1,0 +1,20 @@
+---
+- name: "Callback to ACE to get Identity token"
+  delegate_to: localhost
+  uri:
+    url: "{{ config_host }}/v2/task/{{ config_id }}/token"
+    headers:
+      X-Task-Data-Password: "{{ task_data_password }}"
+  register: ACE_Identity_token
+  retries: 3
+
+- name: "Show ACE API get token failure results"
+  when: ACE_Identity_token is not success
+  fail:
+    msg: "{{ ACE_Identity_token }}"
+  tags: print_action
+
+- name: "Create fact for Identity token"
+  set_fact:
+    Identity_token: "{{ ACE_Identity_token.json.data.Token }}"
+...

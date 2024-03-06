@@ -1,0 +1,29 @@
+---
+- name: Initialize version info
+  set_fact:
+    cohesity_version_info: null
+
+- name: Check if version file {{ version_file }} exists
+  ansible.builtin.stat:
+    path: "{{ version_file }}"
+  register: version_file_stat
+
+- name: Read version file {{ version_file }}
+  ansible.builtin.slurp:
+    path: "{{ version_file }}"
+  register: version_file_slurp
+  ignore_errors: true
+  when: version_file_stat.stat.exists
+
+- name: Read version from file content
+  ansible.builtin.set_fact:
+    cohesity_version_info: >-
+      {%- set tmp = dict() -%}
+      {%- for k,v in version_file_slurp.content | b64decode |
+        regex_findall('^\w+:.*$', multiline=True)| map("split", ": ") -%}
+        {%- set ignore = tmp.update({k: v}) -%}
+      {%- endfor -%}
+      {{ tmp }}
+  when:
+    - version_file_slurp is not skipped
+    - version_file_slurp is success

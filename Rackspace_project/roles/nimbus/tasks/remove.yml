@@ -1,0 +1,71 @@
+---
+# This is a workaround for el7, if nimbus is started via init(default)
+# it won't be able to stop using systemd, then a restart is needed.
+# https://jira.rax.io/browse/NIM-7
+- name: Restart nimbus (workaround for init/systemd)
+  service:
+    name: nimbus
+    state: restarted
+  changed_when: "False"
+  failed_when: "False"
+
+- name: Stop nimbus - systemd
+  service:
+    name: nimbus
+    state: stopped
+    enabled: "no"
+  when: ansible_service_mgr == 'systemd'
+  changed_when: "False"
+  ignore_errors: "yes"
+  register: stop_attempt_systemd
+
+- name: Stop nimbus - non-systemd
+  service:
+    name: nimbus
+    state: stopped
+    enabled: "no"
+    pattern: nimbus
+  when: ansible_service_mgr != 'systemd'
+  changed_when: "False"
+  ignore_errors: "yes"
+  register: stop_attempt
+
+- name: Kill nimbus pid
+  shell:
+    cmd: 'pgrep -f nimbu[s] && kill -9 $(pgrep -f nimbu[s]) || true'
+  args:
+    warn: "no"
+  when: stop_attempt is failed or stop_attempt_systemd is failed
+
+- name: Archive old install
+  archive:
+    path: "{{ nimbus_found_dirs }}"
+    dest: "~rack/nimbus-{{ ansible_date_time.iso8601 }}.tar.gz"
+    remove: "True"
+
+- name: Find sysV files
+  find:
+    paths: "{{ nimbus_sysv_topdir }}"
+    patterns: "{{ nimbus_sysv_patterns }}"
+    recurse: "yes"
+    file_type: any
+  register: sysv_scripts
+
+- name: Define nimbus sysv_files
+  set_fact:
+    nimbus_sysv_files: "{{ nimbus_sysv_files|default([]) + [ item.path ] }}"
+  with_items: "{{ sysv_scripts.files }}"
+  when: sysv_scripts.matched
+
+- name: Remove all nimbus related files
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ nimbus_service_files }}"
+    - "{{ nimbus_sysv_files | default([]) }}"
+    - "{{ nimbus_found_dirs }}"
+  notify:
+    - reload systemd daemon
+
+...

@@ -1,0 +1,31 @@
+---
+  # Deliberately breaking out packages to verify that each is installed
+- name: Install Packages Needed For Containers as a group
+  package:
+    name: "{{ packages }}"
+    update_cache: "yes"
+    state: present
+  register: first_install
+  ignore_errors: true
+  retries: 2
+  until: first_install is successful
+
+  # https://github.com/meefik/linuxdeploy/issues/264
+- name: Remount selinux as ro
+  shell:
+    cmd: mount -o remount,ro /sys/fs/selinux
+    warn: false
+  when: first_install is failed
+
+- name: Install Packages Needed For Containers individually
+  package:
+    name: "{{ packages }}"
+  register: install
+  ignore_errors: true
+  retries: 3
+  until: install is successful
+  when: first_install is failed
+
+- name: Refresh Facts
+  setup:
+

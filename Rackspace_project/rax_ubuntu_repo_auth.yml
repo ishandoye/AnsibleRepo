@@ -1,0 +1,18 @@
+---
+- name: Rackspace ubuntu repo registration (auth)
+  hosts: all
+  become: "yes"
+  gather_facts: "yes"
+  vars_prompt:
+    - name: username
+      prompt: username(SSO)
+      private: "no"
+    - name: pin_rsa
+      prompt: PIN+RSA
+      private: "yes"
+  tasks:
+  - include_role:
+      name: rax_ubuntu_repo
+    vars:
+      authenticate: "yes"
+...

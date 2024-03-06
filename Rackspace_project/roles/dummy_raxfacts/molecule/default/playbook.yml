@@ -1,0 +1,5 @@
+---
+- name: Test Dedicated Servers
+  hosts: dedicated
+  roles:
+    - role: dummy_raxfacts

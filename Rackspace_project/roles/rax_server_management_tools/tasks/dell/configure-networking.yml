@@ -1,0 +1,13 @@
+---
+
+- name: Get obm networking info from CORE
+  include_tasks: ../common/get-obm-networking-info.yml
+  when: obm_ip is undefined or obm_nm is undefined or obm_gw is undefined
+
+- name: Set drac networking config
+  shell: "{{ item }}"
+  with_items:
+    - "racadm setniccfg -s {{ obm_ip  }} {{ obm_nm  }} {{ obm_gw }} "
+    - "racadm racreset"
+  environment:
+    PATH: /bin:/sbin:/usr/sbin:/opt/dell/srvadmin/bin:/opt/dell/srvadmin/sbin

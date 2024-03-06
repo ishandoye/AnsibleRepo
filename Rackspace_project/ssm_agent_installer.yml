@@ -1,0 +1,10 @@
+---
+- hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+  - include_role:
+      name: ssm_agent_installer
+    tags:
+      - always
+...

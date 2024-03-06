@@ -1,0 +1,56 @@
+---
+- name: Stop MySQL service to remove the packages
+  service:
+    name: "{{ mysql_service_name }}"
+    state: stopped
+
+- name: Collect package information
+  package_facts:
+    manager: auto
+
+- name: Initialise old package list
+  set_fact:
+    old_packages: []
+
+- name: Filter package information and set old_packages
+  set_fact:
+    old_packages: "{{ old_packages +
+      [item.name ~ '-' ~ item.version ~ '.' ~ item.arch] }}"
+  loop: >
+    {{
+      ansible_facts.packages.values()|
+      flatten|
+      selectattr(
+        'name',
+        'match',
+        '(mysql|mysql51|mysql56u|Percona-Server|MariaDB|mariadb(10[0-4])?u?|mysql80)(-|$)+'
+      )|
+      list
+    }}
+
+- name: Check if removed packages file exists
+  stat:
+    path: /home/rack/{{ ticket_no }}/mysql_upgrade_packages.txt
+  register: stat_result
+
+- name: Save original removed packages to file
+  copy:
+    dest: /home/rack/{{ ticket_no }}/mysql_upgrade_packages.txt
+    content: "{{ old_packages|join('\n') }}"
+    mode: 0644
+  when: not stat_result.stat.exists
+
+- name: Save removed packages to file
+  copy:
+    dest: /home/rack/{{ ticket_no }}/{{ mysql.version.full }}_removed_packages.txt
+    content: "{{ old_packages|join('\n') }}"
+    mode: 0644
+  when: stat_result.stat.exists
+
+  # Since we can't perform yum transactions in ansible, we have to remove RPMs
+  # without removing their dependents
+  # When this was written, the only way to do that was to use `rpm -e --nodeps`
+  # https://access.redhat.com/solutions/3812731
+- name: Remove old packages  # noqa 301 303
+  command: rpm -e --nodeps {{ old_packages|join(" ") }}
+  when: ansible_os_family == "RedHat"

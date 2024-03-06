@@ -1,0 +1,80 @@
+---
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: true
+  gather_subset:
+    - min
+  vars:
+    authcfg_pkg: >-
+      {{
+        (ansible_distribution_major_version|int < 8)|ternary(
+          "authconfig",
+          "authselect"
+        )
+      }}
+    authcfg_cmd: >-
+      {{
+        (ansible_distribution_major_version|int < 8)|ternary(
+          "/usr/sbin/authconfig --updateall",
+          "/usr/bin/authselect select sssd --force"
+        )
+      }}
+    extras:
+      RedHat:
+        pkgs:
+          - openssh-clients
+          - openssh-server
+          - sshpass
+        svcs:
+          - sshd
+      Debian:
+        pkgs:
+          - openssh-client
+          - openssh-server
+          - sshpass
+        svcs:
+          - ssh
+  tasks:
+    - name: Ensure hostname is set correctly on EL6
+      block:
+        - name: Set hostname on EL6
+          hostname:
+            name: "{{ inventory_hostname }}"
+            use: redhat
+
+        - name: Update hostname in /etc/sysconfig/network for EL6
+          lineinfile:
+            path: /etc/sysconfig/network
+            create: false
+            state: present
+            line: HOSTNAME={{ inventory_hostname }}
+            regexp: ^HOSTNAME=.*
+            insertafter: EOF
+      when:
+        - ansible_os_family == 'RedHat'
+        - ansible_distribution_major_version|int == 6
+
+    - name: Fix up authconfig on RHEL based devices
+      block:
+        - name: Ensure auth config package is installed on EL devices
+          package:
+            name: "{{ authcfg_pkg }}"
+            state: present
+
+        - name: Update base authconfig on EL devices
+          command: "{{ authcfg_cmd }}"
+      when:
+        - ansible_os_family == "RedHat"
+
+    - name: Install other necessary packages
+      package:
+        name: "{{ extras[ansible_os_family]['pkgs'] }}"
+        state: present
+
+    - name: Enable/start other necessary services
+      service:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop: "{{ extras[ansible_os_family]['svcs'] }}"

@@ -1,0 +1,7 @@
+---
+install_version: current
+role_action: install
+download_path: /root/cohesity_agent
+force_reinstall: false
+debug_script: false
+...

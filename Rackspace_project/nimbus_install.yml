@@ -1,0 +1,19 @@
+---
+- name: Re/Install Nimbus
+  become: "yes"
+  hosts: all
+  tasks:
+  - name: Message about deprecation
+    pause:
+      prompt: |
+          __        ___    ____  _   _ ___ _   _  ____
+          \ \      / / \  |  _ \| \ | |_ _| \ | |/ ___|
+           \ \ /\ / / _ \ | |_) |  \| || ||  \| | |  _
+            \ V  V / ___ \|  _ <| |\  || || |\  | |_| |
+             \_/\_/_/   \_\_| \_\_| \_|___|_| \_|\____|
+          This role is now deprecated, please use nimbus role through
+          nimbus.yml playbook
+      seconds: 30
+    failed_when: true
+
+...

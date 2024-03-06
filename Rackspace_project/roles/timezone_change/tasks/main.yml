@@ -1,0 +1,24 @@
+  - name: Change the timezone
+    timezone: name={{ timezone }}
+    register: timezone_register
+    notify: restart dependent services
+
+  - name: Load custom variables
+    include_vars: "{{ item }}"
+    with_first_found:
+    - files:
+      - "{{ ansible_os_family|lower }}{{
+            ansible_distribution_major_version  }}.yml"
+      - "{{ ansible_os_family|lower }}.yml"
+    when: restart_mysql and mysql_name is undefined
+
+  - name: Check if MySQL is running
+    service:
+      name: "{{ mysql_name }}"
+      state: stopped
+    register: mysql_running
+    check_mode: yes
+    failed_when: False
+    changed_when: mysql_running is changed and not 'msg' in mysql_running
+    when: restart_mysql and timezone_register is changed
+...

@@ -1,0 +1,98 @@
+---
+dependency:
+  enabled: true
+  name: shell
+  command: >-
+    cp -L ${MOLECULE_SCENARIO_DIRECTORY}/centos6.repo
+    ${MOLECULE_EPHEMERAL_DIRECTORY}
+
+driver:
+  name: docker
+
+lint: |
+  set -e
+  yamllint .
+
+platforms:
+  - name: molecule-el6
+    image: docker-remote.artifacts.rackspace.net/centos:6
+    dockerfile: el6_Dockerfile.j2
+
+  - name: molecule-el7
+    image: docker-remote.artifacts.rackspace.net/centos:7
+    groups:
+      - rs_holland_cfg
+
+  - name: molecule-py3-el7
+    image: docker-remote.artifacts.rackspace.net/centos:7
+    groups:
+      - rs_holland_cfg
+
+  - name: molecule-el8
+    image: docker-remote.artifacts.rackspace.net/almalinux:8
+    groups:
+      - rs_holland_cfg
+
+  - name: molecule-el9
+    image: docker-remote.artifacts.rackspace.net/almalinux:9
+    groups:
+      - rs_holland_cfg
+
+  - name: molecule-u18
+    image: docker-remote.artifacts.rackspace.net/ubuntu:18.04
+    groups:
+      - rs_holland_cfg
+
+  - name: molecule-u20
+    image: docker-remote.artifacts.rackspace.net/ubuntu:20.04
+    groups:
+      - rs_holland_cfg
+
+  - name: molecule-u22
+    image: docker-remote.artifacts.rackspace.net/ubuntu:22.04
+    groups:
+      - rs_holland_cfg
+
+  - name: molecule-d10
+    image: docker-remote.artifacts.rackspace.net/debian:10
+
+  - name: molecule-d11
+    image: docker-remote.artifacts.rackspace.net/debian:11
+
+provisioner:
+  name: ansible
+  env:
+    # assumes role is being tested directly from SupportTools/playbooks
+    # this is generally needed when using custom modules from this repo
+    ANSIBLE_LIBRARY: ../../../../library
+    ANSIBLE_MODULE_UTILS: ../../../../module_utils
+    ANSIBLE_ROLES_PATH: ../../../../roles
+    # Set to true if `molecule --debug` is insufficient
+    ANSIBLE_DEBUG: false
+  inventory:
+    host_vars:
+      molecule-py3-el7:
+        el7_py3: true
+    group_vars:
+      all:
+        install_rs_holland_cfg: ${INSTALL_RS_HOLLAND_CFG:-1}
+      rs_holland_cfg:
+        has_rs_holland_cfg: true
+
+scenario:
+  test_sequence:
+    - syntax
+    - destroy
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy
+
+verifier:
+  # ansible is the default verifier
+  # testinfra can also be used
+  name: ansible
+  enabled: true
+...

@@ -1,0 +1,14 @@
+---
+
+- name: Install dell packages
+  package:
+    name: "{{ item }}"
+    state: latest
+  with_items: "{{ dell_install_pkgs }}"
+
+- name: Ensure dell services are started/enabled
+  service:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  with_items: "{{ dell_services_to_enable }}"
