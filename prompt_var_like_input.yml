@@ -1,0 +1,16 @@
+---
+
+- hosts: all
+  become: true
+
+  vars_prompt:
+   - name: username
+     prompt: "Username"
+     private: no
+
+  tasks:
+  - name: Check for local user
+     cmd: grep '^{{username}}:' /etc/passwd
+     register: user_state
+     failed_when: false
+     changed_when: false
